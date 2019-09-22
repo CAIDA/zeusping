@@ -13,7 +13,7 @@ addr_to_dropouts = defaultdict(int)
 addr_to_newresps = defaultdict(int)
 
 resp_dropout_per_round_fname = '{0}/responsive_and_dropout_addrs/resp_dropout_per_round'.format(processed_op_dir)
-resp_dropout_per_round_fp = open(resp_dropout_per_round_fname, 'w') # TODO: Maybe change to Append mode at some point?
+resp_dropout_per_round_fp = open(resp_dropout_per_round_fname, 'w') # TODO: Maybe change to Append mode at some point? No, if I want to keep track of addr_to_* statistics
 
 # all_addrs = set()
 
@@ -61,4 +61,5 @@ for addr in addr_to_resps:
 
 # Key thing to note:
 # Responsive addresses is the number of addresses that responded in the *previous* round. So the number of addresses that responded in a given round is #responsive + #newresps - #dropouts. 
-# The only way the above invariant can be broken, is if an address was not pinged at all in a particular round.
+# One way the above rule can be broken, is if an address was not pinged at all in a particular round.
+# *Another* way the rule can be broken, is if pings to an address sent icmp errors in the previous round but pings to the address result in successful responses this round. Then we have more "responsive" addresses (as measured by awk '{if ($3 > 0) print}' resps_per_addr in a particular round),  but  they wouldn't be considered "newly responsive" according to this script here because an address is newly responsive only if it was completely unresponsive to pings in the previous round.
