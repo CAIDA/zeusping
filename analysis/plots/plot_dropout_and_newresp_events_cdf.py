@@ -1,10 +1,12 @@
 
+# TODO: Make this script just read the one input file (addr_to_dropouts_suf) and plot cdfs. Probably need to add a function to execute the two awk calls and that should suffice.
+
 import sys
 import getopt
 
 # Import utils script for inheriting the Jgraph class
-dhcp_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
-sys.path.append(dhcp_utils_path + "/utils")
+zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+sys.path.append(zeusping_utils_path + "/utils")
 import jgraph
 
 # For executing commands
@@ -14,7 +16,7 @@ import time
 
 is_talk = 0
 
-class Num_Addrs_CDF(jgraph.CDF_Jgraph):
+class Events_CDF(jgraph.CDF_Jgraph):
 
     def init_jgraph(self, jgr_fname, title=None):
         self.op_fname = jgr_fname
@@ -40,8 +42,8 @@ class Num_Addrs_CDF(jgraph.CDF_Jgraph):
         # "color 0 0 0",
 
         # For talk
-        "color 0.2 0.8 0.1",
         "color 0.8 0 0",
+        "color 0.2 0.8 0.1",        
         "color 0.2 0.2 0.8",
         "color 0.65 0.65 0.2",
         "color 0.1 0.65 0.65",
@@ -91,7 +93,7 @@ class Num_Addrs_CDF(jgraph.CDF_Jgraph):
             # conf += 'hash_labels fontsize 11\n\n'
 
         conf += 'label : {0}\n'.format(xaxis_label)
-        conf += 'min 0.1\n'
+        conf += 'min 0\n'
 
         # conf += 'no_auto_hash_labels\n'
         # conf += 'no_auto_hash_marks\n'
@@ -175,10 +177,26 @@ class Num_Addrs_CDF(jgraph.CDF_Jgraph):
         return conf
 
 
+    def calc_n_vals_per_fname(self):
+        self.n_vals = []
+        self.x_max = 0
+        
+        for cdf_inp_fname in self.cdf_fnames_list:
+            ip_fp = open(cdf_inp_fname, "r")
+            n_vals = 0
+            for line in ip_fp:
+                n_vals += 1
+                val = int(line[:-1])
+                if val > self.x_max:
+                    self.x_max = val
+            self.n_vals.append(n_vals)
+            ip_fp.close()
+
+    
     def config_legends(self):
         if (is_talk != 1):
             # if (is_nonperiodic != 1):
-            self.fp.write("legend defaults x 200 y 0.2 hjr vjb\n\n")
+            self.fp.write("legend defaults x {0} y 0.2 hjr vjb\n\n".format(self.x_max) )
                 # self.fp.write("legend defaults x 1.25 y 0.775 hjl vjc\n\n")
                 # self.fp.write("legend defaults x 169 y 0.225 hjr vjc\n\n") # Orange r_vs_n
         else:
@@ -253,7 +271,7 @@ if __name__=="__main__":
     xlabel = "Number of events"
     ylabel = "Cumulative distribution of addresses"
 
-    j = Num_Addrs_CDF()
+    j = Events_CDF()
     if (title == None):
         j.init_jgraph(op_fname)
     else:
