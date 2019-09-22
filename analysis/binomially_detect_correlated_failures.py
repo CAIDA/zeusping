@@ -23,7 +23,10 @@ for line in resp_dropout_per_round_fp:
 
     line_ct += 1
 
-    if line_ct < 200:
+    # if line_ct < 200:
+    #     continue
+
+    if line_ct == 1:
         continue
 
     parts = line.strip().split()
@@ -35,7 +38,7 @@ for line in resp_dropout_per_round_fp:
 
 p_d = float(total_n_d)/total_n_r
 
-p_d *= 2
+# p_d *= 2
 
 sys.stderr.write("Probability of dropout is: {0}\n".format(p_d) )
 
