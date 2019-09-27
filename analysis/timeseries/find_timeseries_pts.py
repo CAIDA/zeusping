@@ -130,7 +130,7 @@ for this_t in range(tstart, tend, 600):
 
     # Testing code
     if test == 1:
-        if this_t >= 1565559000 and this_t <= 1565566200:        
+        if this_t >= 1567027800 and this_t <= 1567114200:        
             test_fname = "{0}/{1}_to_{2}_with_county_asn".format(inp_dir, this_t, this_t + 600)
             test_fp = open(test_fname, "w")
             
@@ -167,7 +167,7 @@ for this_t in range(tstart, tend, 600):
             county_asn_to_status[county][asn]["newresp"] += 1
 
         if test == 1:
-            if this_t >= 1565559000 and this_t <= 1565566200:
+            if this_t >= 1567027800 and this_t <= 1567114200:
                 test_fp.write("{0} {1} {2}\n".format(line[:-1], county, asn) )
 
     for county in county_asn_to_status:
@@ -211,6 +211,6 @@ for this_t in range(tstart, tend, 600):
     write_to_file(asn_to_status, asn_fps)
         
     if test == 1:
-        if this_t >= 1565559000 and this_t <= 1565566200:        
+        if this_t >= 1567027800 and this_t <= 1567114200:        
             test_fp.close()
         
