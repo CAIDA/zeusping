@@ -8,40 +8,96 @@ import wandio
 # ipm = pyipmeta.IpMeta(provider="netacq-edge",
 #                       provider_config="-b /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz")
 
-idx_to_county = {}
-# Populate county_to_id
-county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
-for line in county_idxs_fp:
-    parts = line.strip().split(',')
-    idx = parts[0].strip()
-    county_name = parts[2][1:-1] # Get rid of quotes
-    idx_to_county[idx] = county_name
-
     
+def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None'):
+
+    for this_k in list_of_keys:
+
+        if county_asn == True:
+            inp_fname = "{0}/resp_dropout_per_round_{1}_{2}".format(inp_dir, county_idx, this_k)
+        else:
+            # TODO: This is a temporary hack because I did not distinguish between AS209 and the county 209.
+            if 'counties' in mode and this_k == '209':
+                continue
+            inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)
+            
+        try:
+            inp_fp = open(inp_fname, "r")
+
+        except IOError:
+            # sys.stderr.write("{0} could not be opened\n".format(inp_fname) )
+            continue
+
+        for line in inp_fp:
+            parts = line.strip().split()
+            tstamp = int(parts[0].strip() )
+            n_r = int(parts[1].strip() )
+            n_n = int(parts[2].strip() )
+            n_d = int(parts[3].strip() )
+
+            all_tstamps.add(tstamp)
+
+            if this_k not in this_d:
+                this_d[this_k] = {"n_d" : {}, "n_r" : {}, "n_n" : {} }
+            this_d[this_k]["n_d"][tstamp] = n_d
+            this_d[this_k]["n_r"][tstamp] = n_r
+            this_d[this_k]["n_n"][tstamp] = n_n            
+
+
+def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None):
+    for this_k in this_d:
+
+        # We have some missing data at 1566523200. So some keys do not have a corresponding entry
+        # IMP: Turns out that the keypackage automatically sets keys to 0 if we do not specify them. So even for county_idx 2130, 2011, and 1939, the values are set to 0 for tstamp 1566523200. (Check test_kp.py)
+        if tstamp not in this_d[this_k]["n_r"]:
+            # sys.stderr.write("No tstamp {0} for key {1}\n".format(tstamp, this_k) )
+            continue
+
+        n_d = this_d[this_k]["n_d"][tstamp]
+        n_r = this_d[this_k]["n_r"][tstamp]
+        n_n = this_d[this_k]["n_n"][tstamp]
+
+        if 'county-asn' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, this_k)
+        elif 'counties' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.dropout_addr_cnt".format(this_k)
+        elif 'asns' in mode:
+            key = "projects.zeusping.test1.routing.asn.{0}.dropout_addr_cnt".format(this_k)
+            
+        idx = kp.get_key(key)
+        if idx is None:
+            idx = kp.add_key(key)
+        kp.set(idx, n_d)
+
+        if 'county-asn' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.previously_responsive_addr_cnt".format(county_idx, this_k)
+        elif 'counties' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.previously_responsive_addr_cnt".format(this_k)
+        elif 'asns' in mode:
+            key = "projects.zeusping.test1.routing.asn.{0}.previously_responsive_addr_cnt".format(this_k)
+
+        idx = kp.get_key(key)
+        if idx is None:
+            idx = kp.add_key(key)
+        kp.set(idx, n_r)
+
+        if 'county-asn' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.newly_responsive_addr_cnt".format(county_idx, this_k)
+        elif 'counties' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.newly_responsive_addr_cnt".format(this_k)
+        elif 'asns' in mode:
+            key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
+        
+        idx = kp.get_key(key)
+        if idx is None:
+            idx = kp.add_key(key)
+        kp.set(idx, n_n)
+
+        
 inp_dir = sys.argv[1]
+mode = sys.argv[2]
 
 ts = _pytimeseries.Timeseries()
-
-# print ts
-# print
-
-# print "Asking for ASCII backend by ID:"
-# # try getting a backend that exists
-# be = ts.get_backend_by_id(1)
-# print "Got backend: %d, %s (%s)" % (be.id, be.name, be.enabled)
-# print
-
-# # try to get one that does not exist
-# print "Asking for non-existent backend by ID (1000):"
-# be = ts.get_backend_by_id(1000)
-# print "This should be none: %s" % be
-# print
-
-# # try to get all available backends
-# print "Getting all available backends:"
-# all_bes = ts.get_all_backends()
-# print all_bes
-# print
 
 # try to get ascii by name
 # print "Asking for ASCII backend by name:"
@@ -70,59 +126,50 @@ ts.enable_backend(be)
 kp = ts.new_keypackage(reset=True)
 # print kp
 
+idx_to_county = {}
+# Populate county_to_id
+county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
+for line in county_idxs_fp:
+    parts = line.strip().split(',')
+    idx = parts[0].strip()
+    county_name = parts[2][1:-1] # Get rid of quotes
+    idx_to_county[idx] = county_name
 
+counties = idx_to_county.keys()
+
+all_tstamps = set()
+
+if 'counties' in mode:
+    county_to_vals = {}
+    populate_idx_to_val(county_to_vals, counties)
 
 asns = ['7922', '209', '20001']
 
-# asn_to_vals = {}
-# all_tstamps = []
+if 'asns' in mode:
+    asn_to_vals = {}
+    populate_idx_to_val(asn_to_vals, asns)
 
-# for asn in asns:
-#     inp_fp = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, asn), "r")
-    
-#     for line in inp_fp:
-#         parts = line.strip().split()
-#         tstamp = int(parts[0].strip() )
-#         n_r = int(parts[1].strip() )
-#         n_n = int(parts[2].strip() )
-#         n_d = int(parts[3].strip() )
+if 'county-asn' in mode:
+    county_asn_to_vals = {}
+    for county_idx in counties:
+        if county_idx not in county_asn_to_vals:
+            county_asn_to_vals[county_idx] = {}
+        populate_idx_to_val(county_asn_to_vals[county_idx], asns, county_asn=True, county_idx=county_idx)
 
-#         all_tstamps.append(tstamp)
+
+for tstamp in sorted(all_tstamps):
+    if 'counties' in mode:
+        set_keys_for_this_tstamp(county_to_vals, counties, tstamp, mode, county_idx=None)
         
-#         if asn not in asn_to_vals:
-#             asn_to_vals[asn] = {"n_d" : {}, "n_r" : {}, "n_n" : {} }
-#         asn_to_vals[asn]["n_d"][tstamp] = n_d
+    if 'asns' in mode:
+        set_keys_for_this_tstamp(asn_to_vals, asns, tstamp, mode, county_idx=None)
 
+    if 'county-asn' in mode:
+        for county_idx in county_asn_to_vals:
+            set_keys_for_this_tstamp(county_asn_to_vals[county_idx], asns, tstamp, mode, county_idx=county_idx)
 
-county_asn_to_vals = {}
-all_tstamps = []
-for county_idx in idx_to_county:
-    for asn in asns:
-        try:
-            inp_fp = open("{0}/resp_dropout_per_round_{1}_{2}".format(inp_dir, county_idx, asn), "r")
-        except IOError:
-            continue
-
-        for line in inp_fp:
-            parts = line.strip().split()
-            tstamp = int(parts[0].strip() )
-            n_r = int(parts[1].strip() )
-            n_n = int(parts[2].strip() )
-            n_d = int(parts[3].strip() )
-
-            all_tstamps.append(tstamp)
-
-            if county_idx not in county_asn_to_vals:
-                county_asn_to_vals[county_idx] = {}
-            if asn not in county_asn_to_vals[county_idx]:
-                county_asn_to_vals[county_idx][asn] = {"n_d" : {}, "n_r" : {}, "n_n" : {} }
-            county_asn_to_vals[county_idx][asn]["n_d"][tstamp] = n_d
-            county_asn_to_vals[county_idx][asn]["n_r"][tstamp] = n_r
-            county_asn_to_vals[county_idx][asn]["n_n"][tstamp] = n_n                        
-
-        
-# for tstamp in all_tstamps:
-
+    kp.flush(tstamp)    
+            
 #     for asn in asn_to_vals:
 
 #         n_d = asn_to_vals[asn]["n_d"][tstamp]
@@ -136,37 +183,42 @@ for county_idx in idx_to_county:
 #     kp.flush(tstamp)
 
 
-for tstamp in all_tstamps:
-    for county_idx in county_asn_to_vals:
-        for asn in county_asn_to_vals[county_idx]:
+# for tstamp in all_tstamps:
 
-            # TODO: Figure out why
-            if tstamp not in county_asn_to_vals[county_idx][asn]["n_d"]:
-                continue
-            
-            n_d = county_asn_to_vals[county_idx][asn]["n_d"][tstamp]
-            n_r = county_asn_to_vals[county_idx][asn]["n_r"][tstamp]
-            n_n = county_asn_to_vals[county_idx][asn]["n_n"][tstamp]
-            
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, asn)
-            idx = kp.get_key(key)
-            if idx is None:
-                idx = kp.add_key(key)
-            kp.set(idx, n_d)
+#     if 'counties' in mode:
+#         set_keys_for_this_tstamp(county_to_vals, counties, tstamp)
+    
+#     for county_idx in county_asn_to_vals:
 
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.previously_responsive_addr_cnt".format(county_idx, asn)
-            idx = kp.get_key(key)
-            if idx is None:
-                idx = kp.add_key(key)
-            kp.set(idx, n_r)
+#         for asn in county_asn_to_vals[county_idx]:
 
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.newly_responsive_addr_cnt".format(county_idx, asn)
-            idx = kp.get_key(key)
-            if idx is None:
-                idx = kp.add_key(key)
-            kp.set(idx, n_n)
+#             # TODO: Figure out why
+#             if tstamp not in county_asn_to_vals[county_idx][asn]["n_d"]:
+#                 continue
+
+#             n_d = county_asn_to_vals[county_idx][asn]["n_d"][tstamp]
+#             n_r = county_asn_to_vals[county_idx][asn]["n_r"][tstamp]
+#             n_n = county_asn_to_vals[county_idx][asn]["n_n"][tstamp]
+
+#             key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, asn)
+#             idx = kp.get_key(key)
+#             if idx is None:
+#                 idx = kp.add_key(key)
+#             kp.set(idx, n_d)
+
+#             key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.previously_responsive_addr_cnt".format(county_idx, asn)
+#             idx = kp.get_key(key)
+#             if idx is None:
+#                 idx = kp.add_key(key)
+#             kp.set(idx, n_r)
+
+#             key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.newly_responsive_addr_cnt".format(county_idx, asn)
+#             idx = kp.get_key(key)
+#             if idx is None:
+#                 idx = kp.add_key(key)
+#             kp.set(idx, n_n)
             
-    kp.flush(tstamp)
+#     kp.flush(tstamp)
     
         
 

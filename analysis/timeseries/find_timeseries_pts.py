@@ -28,11 +28,13 @@ def update_aggregate_details(aggregator_dict, n_r, n_n, n_d):
     aggregator_dict["dropout"] += n_d
 
 
-def write_to_file(key_to_status, fps):
+def write_to_file(key_to_status, fps, isasn = False):
     for key in key_to_status:
         if key not in fps:
-            fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "w")
-            
+            if isasn == False:
+                fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "w")
+            else:
+                fps[key] = open("{0}/resp_dropout_per_round_AS{1}".format(inp_dir, key), "w")                
         this_d = key_to_status[key]
         n_r = this_d["resp"]
         n_n = this_d["newresp"]
@@ -183,7 +185,7 @@ for this_t in range(tstart, tend, 600):
             n_d = this_d["dropout"]
 
             if asn not in county_asn_fps[county]:
-                county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_{2}".format(inp_dir, county, asn), "w")
+                county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county, asn), "w")
 
             county_asn_fps[county][asn].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
             county_asn_fps[county][asn].flush()
@@ -208,7 +210,7 @@ for this_t in range(tstart, tend, 600):
         
     #     county_fps[county].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
 
-    write_to_file(asn_to_status, asn_fps)
+    write_to_file(asn_to_status, asn_fps, isasn=True)
         
     if test == 1:
         if this_t >= 1567027800 and this_t <= 1567114200:        
