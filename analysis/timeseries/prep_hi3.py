@@ -117,6 +117,8 @@ for county_idx in idx_to_county:
             if asn not in county_asn_to_vals[county_idx]:
                 county_asn_to_vals[county_idx][asn] = {"n_d" : {}, "n_r" : {}, "n_n" : {} }
             county_asn_to_vals[county_idx][asn]["n_d"][tstamp] = n_d
+            county_asn_to_vals[county_idx][asn]["n_r"][tstamp] = n_r
+            county_asn_to_vals[county_idx][asn]["n_n"][tstamp] = n_n                        
 
         
 # for tstamp in all_tstamps:
@@ -143,13 +145,27 @@ for tstamp in all_tstamps:
                 continue
             
             n_d = county_asn_to_vals[county_idx][asn]["n_d"][tstamp]
-
+            n_r = county_asn_to_vals[county_idx][asn]["n_r"][tstamp]
+            n_n = county_asn_to_vals[county_idx][asn]["n_n"][tstamp]
+            
             key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, asn)
             idx = kp.get_key(key)
             if idx is None:
                 idx = kp.add_key(key)
             kp.set(idx, n_d)
 
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.previously_responsive_addr_cnt".format(county_idx, asn)
+            idx = kp.get_key(key)
+            if idx is None:
+                idx = kp.add_key(key)
+            kp.set(idx, n_r)
+
+            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.newly_responsive_addr_cnt".format(county_idx, asn)
+            idx = kp.get_key(key)
+            if idx is None:
+                idx = kp.add_key(key)
+            kp.set(idx, n_n)
+            
     kp.flush(tstamp)
     
         
