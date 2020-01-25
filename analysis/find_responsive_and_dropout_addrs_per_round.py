@@ -1,18 +1,22 @@
+#!/usr/bin/env python
 
-# Conceptually, at the beginning of a round t, there are N (say 1000) addresses that responded in the last round and can potentially dropout this round. Let's suppose there are D dropouts (say 100), then 950 of them continued to respond in this round as well (NOTE: the way erosprober works, if an address hasn't dropped out, then it *must* be responsive since all addresses are pinged each round). However, it is possible that some addresses dropped out but it was just reassignment or something so M other addresses (say 50) lit up. Then the total number of outages is D - M. 
+# This script uses processed ping responses from round t-1 and round t to calculate the number of dropouts, responsive, and newresp addresses per round
+# Conceptually, at the beginning of a round t, there are N (say 1000) addresses that responded in round t-1 and can potentially dropout this round. Let's suppose there are D dropouts (say 100), then 900 of them continued to respond in this round as well (NOTE: the way erosprober works, if an address hasn't dropped out, then it *must* be responsive since all addresses are pinged each round). However, it is possible that some addresses dropped out due to reassignment so M *other* addresses (say 50) lit up. Then the total number of outages is D - M. 
 
 import sys
 import os
 import datetime
 
-processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
-
 this_t = int(sys.argv[1])
+
+# processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
+processed_op_dir = sys.argv[2]
 
 # First get responsive addresses using the previous round. These are all the addresses that have the potential to fail in this round.
 
 prev_t = this_t - 600
-prev_t_file = '{0}/temp_{1}_to_{2}/resps_per_addr'.format(processed_op_dir, prev_t, this_t)
+# prev_t_file = '{0}/temp_{1}_to_{2}/resps_per_addr'.format(processed_op_dir, prev_t, this_t)
+prev_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, prev_t, this_t)
 sys.stderr.write("Prev file: {0}\n".format(prev_t_file) )
 prev_t_fp = open(prev_t_file, 'r')
 
@@ -38,7 +42,8 @@ for line in prev_t_fp:
 
 # print len(unresp_addrs)
 
-this_t_file = '{0}/temp_{1}_to_{2}/resps_per_addr'.format(processed_op_dir, this_t, this_t + 600)
+# this_t_file = '{0}/temp_{1}_to_{2}/resps_per_addr'.format(processed_op_dir, this_t, this_t + 600)
+this_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, this_t, this_t + 600)
 sys.stderr.write("This file: {0}\n".format(this_t_file) )
 this_t_fp = open(this_t_file, 'r')
 

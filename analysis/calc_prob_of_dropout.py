@@ -3,10 +3,14 @@ import sys
 import datetime
 from collections import defaultdict
 
-processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
+
+
 
 start_t = int(sys.argv[1])
 end_t = int(sys.argv[2])
+
+# processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
+processed_op_dir = sys.argv[3]
 
 addr_to_resps = defaultdict(int)
 addr_to_dropouts = defaultdict(int)
@@ -22,8 +26,12 @@ for this_t in range(start_t, end_t, 600):
     sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
     ip_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}'.format(processed_op_dir, this_t, this_t + 600)
     sys.stderr.write("{0} is being processed\n".format(ip_fname) )
-
-    ip_fp = open(ip_fname)
+    
+    try:
+        ip_fp = open(ip_fname)
+    except:
+        # TODO: This exception is perhaps too broad
+        continue
 
     n_r = 0
     n_d = 0

@@ -74,8 +74,6 @@ sc_cmd = '/nmhomes/ramapad/scamper_2019/bin/sc_warts2json {0}/temp_{1}_to_{2}/*.
 sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
 sys.stderr.write("{0}\n".format(sc_cmd) )
 
-os.system(sc_cmd)
-
 # NOTE: It was tricky to write the subprocess equivalent for the sc_cmd due to the presence of the pipes. I was also not sure what size the buffer for the pipe would be. So I just ended up using os.system() instead.
 # args = shlex.split(sc_cmd)
 # print args
@@ -84,6 +82,8 @@ os.system(sc_cmd)
 # except subprocess.CalledProcessError:
 #     sys.stderr.write("sc_cmd failed for {0}; exiting\n".format(sc_cmd) )
 #     sys.exit(1)
+
+os.system(sc_cmd)
 
 op_log_fp.write("\nFinished sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
 

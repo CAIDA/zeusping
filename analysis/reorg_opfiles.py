@@ -1,6 +1,4 @@
 
-# TODO: I think the solution is to have a pre-processing step where I simply copy files over from the massive current dir into a new dir structure (like I'm doing at the moment, except that I would delete the copied files).
-
 import sys
 import glob
 import time

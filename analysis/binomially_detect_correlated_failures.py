@@ -31,14 +31,14 @@ for line in resp_dropout_per_round_fp:
 
     parts = line.strip().split()
     n_r = int(parts[1])
-    n_d = int(parts[2])
-    n_n = int(parts[3])
+    n_n = int(parts[2])
+    n_d = int(parts[3])
     total_n_r += n_r
     total_n_d += n_d
 
 p_d = float(total_n_d)/total_n_r
 
-# p_d *= 2
+p_d *= 2
 
 sys.stderr.write("Probability of dropout is: {0}\n".format(p_d) )
 
@@ -56,7 +56,7 @@ for line in resp_dropout_per_round_fp:
     parts = line.strip().split()
     round_tstamp = int(parts[0])
     n_r = int(parts[1])
-    n_d = int(parts[2])
+    n_d = int(parts[3])
 
     if (n_d > 1): # A single outage cannot be a correlated failure!
         
