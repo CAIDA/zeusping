@@ -11,17 +11,32 @@ import datetime
 # ipm = pyipmeta.IpMeta(provider="netacq-edge",
 #                       provider_config="-b /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz")
 
+
+# Get idx_to_fqdn for all counties
+idx_to_county = {}
+idx_to_fqdn = {}
+county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
+for line in county_idxs_fp:
+    parts = line.strip().split(',')
+    idx = parts[0].strip()
+    fqdn = parts[1].strip()
+    county_name = parts[2][1:-1] # Get rid of quotes
+    idx_to_county[idx] = county_name
+    idx_to_fqdn[idx] = fqdn
+
     
 def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None'):
 
     for this_k in list_of_keys:
 
         if county_asn == True:
-            inp_fname = "{0}/resp_dropout_per_round_{1}_{2}".format(inp_dir, county_idx, this_k)
-        else:
+            inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county_idx, this_k)
+        elif 'asns' in mode:
             # TODO: This is a temporary hack because I did not distinguish between AS209 and the county 209.
-            if 'counties' in mode and this_k == '209':
-                continue
+            # if 'counties' in mode and this_k == '209':
+            #     continue
+            inp_fname = "{0}/resp_dropout_per_round_AS{1}".format(inp_dir, this_k)
+        else:
             inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)
             
         try:
@@ -61,9 +76,10 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
         n_n = this_d[this_k]["n_n"][tstamp]
 
         if 'county-asn' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, this_k)
+            # key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.dropout_addr_cnt".format(idx_to_fqdn[county_idx], this_k)            
         elif 'counties' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.dropout_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.dropout_addr_cnt".format(this_k)
             
@@ -73,9 +89,9 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
         kp.set(idx, n_d)
 
         if 'county-asn' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.previously_responsive_addr_cnt".format(county_idx, this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.previously_responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
         elif 'counties' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.previously_responsive_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.previously_responsive_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.previously_responsive_addr_cnt".format(this_k)
 
@@ -85,9 +101,9 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
         kp.set(idx, n_r)
 
         if 'county-asn' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.newly_responsive_addr_cnt".format(county_idx, this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.newly_responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
         elif 'counties' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.newly_responsive_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.newly_responsive_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
         
@@ -98,10 +114,10 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
 
         if 'numpinged' in mode:
             if 'county-asn' in mode:
-                key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.pinged_addr_cnt".format(county_idx, this_k)
+                key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.pinged_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
                 val = county_asn_to_numpinged[county_idx][this_k]
             elif 'counties' in mode:
-                key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.pinged_addr_cnt".format(this_k)
+                key = "projects.zeusping.test1.geo.netacuity.{0}.pinged_addr_cnt".format(idx_to_fqdn[this_k])
                 val = county_to_numpinged[this_k]
             elif 'asns' in mode:
                 key = "projects.zeusping.test1.routing.asn.{0}.pinged_addr_cnt".format(this_k)
@@ -158,6 +174,8 @@ counties = idx_to_county.keys()
 
 all_tstamps = set()
 
+# NOTE: We only need to load pyipmeta, ip_to_as when we want to add the timeseries curves for numpinged within the aggregations.
+# NOTE: Need to refactor the following code to handle multiple states
 if 'numpinged' in mode:
 
     # Load pyipmeta in order to perform county lookups per address
@@ -225,7 +243,9 @@ if 'counties' in mode:
     county_to_vals = {}
     populate_idx_to_val(county_to_vals, counties)
 
-asns = ['7922', '209', '20001']
+# TODO: Change the following to include all ASes
+# asns = ['7922', '209', '20001']
+asns = ['7922', '209', '13977', '22773', '701', '7155']
 
 if 'asns' in mode:
     asn_to_vals = {}
@@ -236,6 +256,8 @@ if 'county-asn' in mode:
     for county_idx in counties:
         if county_idx not in county_asn_to_vals:
             county_asn_to_vals[county_idx] = {}
+
+        # TODO: Call populate_idx_to_val on a county-ASN only if that ASN is pinged in the county perhaps?
         populate_idx_to_val(county_asn_to_vals[county_idx], asns, county_asn=True, county_idx=county_idx)
 
 
