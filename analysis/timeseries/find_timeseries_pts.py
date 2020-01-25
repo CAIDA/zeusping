@@ -6,9 +6,12 @@ from collections import namedtuple
 import wandio
 import datetime
 
+netacq_date = sys.argv[4]
+
 # Load pyipmeta in order to perform county lookups per address
+provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
 ipm = pyipmeta.IpMeta(provider="netacq-edge",
-                      provider_config="-b /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz")
+                      provider_config=provider_config_str)
 
 
 idx_to_county = {}
@@ -44,36 +47,58 @@ def write_to_file(key_to_status, fps, isasn = False):
         fps[key].flush()
         
     
+# Let's get ip to as mappings for the IP addresses that we pinged in each U.S. state
+# TODO: Whenever I update loc_to_reqd_asns in select_addrs.py, I need to copy it over here. Perhaps I should have a header file with a common definition...
+loc_to_reqd_asns = {
+    "CO" : {'7922', '209', '7155'},
+    "VT" : {'7922', '13977'},
+    # "RI" : {'22773', '701', '7029', '7922'},
+    "RI" : {'22773', '701'},    
+    "CA" : {'7922', '7155'},
+    "accra" : {'30986', '37140'},
+    }
+
 ip_to_as = {}
-# ip_to_as_file = sys.argv[2]
-# ip_to_as_fp = wandio.open(ip_to_as_file)
-# sys.stderr.write("Opening ip_to_as_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
-line_ct = 0
-for line in sys.stdin:
-# for line in ip_to_as_fp:
+ip_to_as_file = sys.argv[5] # Each line of this file is a path to an AS file for a U.S. state
 
-    line_ct += 1
+ip_to_as_fp = open(ip_to_as_file)
+for line in ip_to_as_fp:
 
-    if line_ct%1000000 == 0:
-        sys.stderr.write("{0} lines read at {1}\n".format(line_ct, str(datetime.datetime.now() ) ) )
+    parts = line.strip().split()
+    usstate = parts[0]
+    usstate_ip_to_as_file = parts[1]
     
-    parts = line.strip().split('|')
-    
-    if (len(parts) != 2):
-        continue
-    
-    # addr = parts[0].strip()
-    asn = parts[1].strip()
+    ip_to_as_fp = wandio.open(usstate_ip_to_as_file)
+    sys.stderr.write("Opening ip_to_as_fp for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
+    line_ct = 0
+    # for line in sys.stdin:
+    for line in ip_to_as_fp:
 
-    if ( (asn == '7922') or (asn == '209') or (asn == '11351') or (asn == '10796') or (asn == '20001') or (asn == '7843') or (asn == '11426') or (asn == '33588') or (asn == '12271') ): # Colorado
-        addr = parts[0].strip()
+        line_ct += 1
 
-        if asn != '7922' and asn != '209':
-            asn = '20001'
-        
-        ip_to_as[addr] = asn
+        if line_ct%1000000 == 0:
+            sys.stderr.write("{0} ip_to_as lines for {1} read at {2}\n".format(line_ct, usstate, str(datetime.datetime.now() ) ) )
 
-sys.stderr.write("Done reading ip_to_as_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
+        parts = line.strip().split('|')
+
+        if (len(parts) != 2):
+            continue
+
+        # addr = parts[0].strip()
+        asn = parts[1].strip()
+
+        # if ( (asn == '7922') or (asn == '209') or (asn == '11351') or (asn == '10796') or (asn == '20001') or (asn == '7843') or (asn == '11426') or (asn == '33588') or (asn == '12271') ): # Colorado        
+        if asn in loc_to_reqd_asns[usstate]:
+            addr = parts[0].strip()
+
+            # These lines were for CO, where Charter used tons of ASNs. We no longer ping Charter
+            # if asn != '7922' and asn != '209':
+            #     asn = '20001'
+
+            ip_to_as[addr] = asn
+
+    sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
+
 
 test = 1
 
@@ -131,10 +156,10 @@ for this_t in range(tstart, tend, 600):
     this_fp = open(this_fname, "r")
 
     # Testing code
-    if test == 1:
-        if this_t >= 1567027800 and this_t <= 1567114200:        
-            test_fname = "{0}/{1}_to_{2}_with_county_asn".format(inp_dir, this_t, this_t + 600)
-            test_fp = open(test_fname, "w")
+    # if test == 1:
+    #     if this_t >= 1567027800 and this_t <= 1567114200:        
+    #         test_fname = "{0}/{1}_to_{2}_with_county_asn".format(inp_dir, this_t, this_t + 600)
+    #         test_fp = open(test_fname, "w")
             
     county_asn_to_status = {}
     county_to_status = {}
@@ -168,9 +193,9 @@ for this_t in range(tstart, tend, 600):
         elif status == 2:
             county_asn_to_status[county][asn]["newresp"] += 1
 
-        if test == 1:
-            if this_t >= 1567027800 and this_t <= 1567114200:
-                test_fp.write("{0} {1} {2}\n".format(line[:-1], county, asn) )
+        # if test == 1:
+        #     if this_t >= 1567027800 and this_t <= 1567114200:
+        #         test_fp.write("{0} {1} {2}\n".format(line[:-1], county, asn) )
 
     for county in county_asn_to_status:
 
@@ -212,7 +237,7 @@ for this_t in range(tstart, tend, 600):
 
     write_to_file(asn_to_status, asn_fps, isasn=True)
         
-    if test == 1:
-        if this_t >= 1567027800 and this_t <= 1567114200:        
-            test_fp.close()
+    # if test == 1:
+    #     if this_t >= 1567027800 and this_t <= 1567114200:        
+    #         test_fp.close()
         
