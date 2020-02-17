@@ -1,0 +1,80 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.xcel_outcusts_cnt
+    )
+  ),
+  "Total Xcel custs out"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.7922.previously_responsive_addr_cnt
+    )
+  ),
+  "CO Comcast previously_responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CO Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.7922.newly_responsive_addr_cnt
+    )
+  ),
+  "CO Comcast newly_responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.209.previously_responsive_addr_cnt
+    )
+  ),
+  "CO Qwest previously_responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.209.dropout_addr_cnt
+    )
+  ),
+  "CO Qwest dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.209.newly_responsive_addr_cnt
+    )
+  ),
+  "CO Qwest newly_responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.7155.previously_responsive_addr_cnt
+    )
+  ),
+  "CO Viasat previously_responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.7155.dropout_addr_cnt
+    )
+  ),
+  "CO Viasat dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4417.*.asn.7155.newly_responsive_addr_cnt
+    )
+  ),
+  "CO Viasat newly_responsive_addr_cnt"
+)
