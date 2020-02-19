@@ -91,11 +91,11 @@ op_log_fp.write("\nFinished sc_cmd at: {0}\n".format(str(datetime.datetime.now()
 rm_cmd = 'rm -rf {0}/temp_{1}_to_{2}'.format(processed_op_dir, round_tstart, round_tend)
 sys.stderr.write("{0}\n".format(rm_cmd) )
 args = shlex.split(rm_cmd)
-# try:
-#     subprocess.check_call(args)
-# except subprocess.CalledProcessError:
-#     sys.stderr.write("rm_cmd failed for {0}; exiting\n".format(sc_cmd) )
-#     sys.exit(1)
+try:
+    subprocess.check_call(args)
+except subprocess.CalledProcessError:
+    sys.stderr.write("rm_cmd failed for {0}; exiting\n".format(sc_cmd) )
+    sys.exit(1)
 
 sys.stderr.write("{0}\n\n".format(str(datetime.datetime.now() ) ) )
 
