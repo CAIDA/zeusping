@@ -4,7 +4,7 @@ alias(
       projects.zeusping.test1.geo.netacuity.NA.US.4417.578.xcel_outcusts_cnt
     )
   ),
-  "Total Xcel custs out"
+  "CO-Denver Xcel custs out"
 ),
 alias(
   keepLastValue(
