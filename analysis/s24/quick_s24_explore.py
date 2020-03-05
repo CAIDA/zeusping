@@ -1,7 +1,8 @@
 
 # 1. Identify a 10-minute round where an AS had a spike in dropouts
 # 2. Identify each /24 of that AS
-# 3. Identify each /24's counties and number of responsive, number of dropout addresses
+# 3. Identify each /24's counties and number of responsive, number of dropout addresses, number of anti-dropout addresses
+# 4. For /24s with at least one dropout in this round: Also identify each /24's estimates of dropouts in the previous N rounds (d_prev[0, 1, 2, 3...]), dropouts in the next N rounds d_post[0, 1, 2, 3...]), all dropouts from previous N rounds to next N rounds (n_d_prev_to_post, which is a union) and set of addresses that were responsive from previous N rounds to next N rounds (n_r_prev_to_post)
 
 import sys
 import pyipmeta
@@ -49,6 +50,7 @@ def find_s24(ipv4_addr):
 
 
 s24_to_status = {}
+# dropout_s24s contains s24s which had at least one dropout in the specified round. We will use dropout_s24s for efficiency. Although we have data for other /24s in this round, we care only about /24s which had at least one dropout in this analysis
 dropout_s24s = set()
 inp_fp = wandio.open(inp_fname)
 for line in inp_fp:
@@ -110,10 +112,13 @@ for s24 in dropout_s24s:
     total_d = 0
     total_a = 0
     for county_id in s24_to_status[s24]:
-        total_r += s24_to_status[s24][county_id]["r"]
-        total_d += s24_to_status[s24][county_id]["d"]
-        total_a += s24_to_status[s24][county_id]["a"]
+        r = s24_to_status[s24][county_id]["r"]
+        d = s24_to_status[s24][county_id]["d"]
+        a = s24_to_status[s24][county_id]["a"]
+        total_r += r
+        total_d += d
+        total_a += a
         
-        op_county_s24_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(s24, county_id, s24_to_status[s24][county_id]["r"], s24_to_status[s24][county_id]["d"], s24_to_status[s24][county_id]["a"] ) )
+        op_county_s24_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(s24, county_id, r, d, a) )
 
     op_s24_fp.write("{0}|{1}|{2}|{3}\n".format(s24, total_r, total_d, total_a ) )    
