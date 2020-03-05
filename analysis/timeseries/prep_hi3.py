@@ -30,17 +30,18 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
     for this_k in list_of_keys:
 
         if county_asn == True:
-            inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county_idx, this_k)
+            inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}.gz".format(inp_dir, county_idx, this_k)
         elif 'asns' in mode:
             # TODO: This is a temporary hack because I did not distinguish between AS209 and the county 209.
             # if 'counties' in mode and this_k == '209':
             #     continue
-            inp_fname = "{0}/resp_dropout_per_round_AS{1}".format(inp_dir, this_k)
+            inp_fname = "{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, this_k)
         else:
-            inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)
+            inp_fname = "{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, this_k)
             
         try:
-            inp_fp = open(inp_fname, "r")
+            # TODO: wandio.open
+            inp_fp = wandio.open(inp_fname, "r")
 
         except IOError:
             # sys.stderr.write("{0} could not be opened\n".format(inp_fname) )
@@ -215,7 +216,7 @@ if 'numpinged' in mode:
     county_to_numpinged = defaultdict(int)
     asn_to_numpinged = defaultdict(int)
     county_asn_to_numpinged = {}
-    numpinged_fp = open('randsorted_colorado_4M')
+    numpinged_fp = open('randsorted_colorado_4M') # TODO: Avoid hardcoding like this!
     
     for line in numpinged_fp:
         ip = line[:-1]

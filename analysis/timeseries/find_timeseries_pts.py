@@ -6,6 +6,11 @@ from collections import namedtuple
 import wandio
 import datetime
 
+test = 1
+
+tstart = int(sys.argv[1])
+tend = int(sys.argv[2])
+inp_dir = sys.argv[3]
 netacq_date = sys.argv[4]
 
 # Load pyipmeta in order to perform county lookups per address
@@ -24,7 +29,6 @@ for line in county_idxs_fp:
     idx_to_county[idx] = county_name
 
 
-
 def update_aggregate_details(aggregator_dict, n_r, n_n, n_d):
     aggregator_dict["resp"] += n_r
     aggregator_dict["newresp"] += n_n
@@ -35,9 +39,18 @@ def write_to_file(key_to_status, fps, isasn = False):
     for key in key_to_status:
         if key not in fps:
             if isasn == False:
-                fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "w")
+                # fps[key] = wandio.open("{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, key), "w")
+                if must_append == 0:
+                    fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "w")
+                else:
+                    fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "a")
             else:
-                fps[key] = open("{0}/resp_dropout_per_round_AS{1}".format(inp_dir, key), "w")                
+                # fps[key] = wandio.open("{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, key), "w")
+                if must_append == 0:
+                    fps[key] = open("{0}/resp_dropout_per_round_AS{1}".format(inp_dir, key), "w")
+                else:
+                    fps[key] = open("{0}/resp_dropout_per_round_AS{1}".format(inp_dir, key), "a")
+                    
         this_d = key_to_status[key]
         n_r = this_d["resp"]
         n_n = this_d["newresp"]
@@ -60,6 +73,15 @@ loc_to_reqd_asns = {
 
 ip_to_as = {}
 ip_to_as_file = sys.argv[5] # Each line of this file is a path to an AS file for a U.S. state
+
+if (len(sys.argv) > 6):
+   if sys.argv[6] == 'append': # If we mess up processing and want to append to files instead of overwriting files
+       must_append = 1
+   else:
+       must_append = 0
+else:
+    must_append = 0
+    
 
 ip_to_as_fp = open(ip_to_as_file)
 for line in ip_to_as_fp:
@@ -100,19 +122,19 @@ for line in ip_to_as_fp:
     sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
 
 
-test = 1
-
-inp_dir = sys.argv[3]
-
 # reqd_ips = set()
 
-inp_ips_file = "{0}/addr_to_dropouts".format(inp_dir)
+inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)
 if test == 1:
-    test_asn_fname = "{0}/addr_to_dropouts_detailed".format(inp_dir)
-    test_asn_fp = open(test_asn_fname, 'w')
+    # test_asn_fname = "{0}/addr_to_dropouts_detailed.gz".format(inp_dir)
+    test_asn_fname = "{0}/addr_to_dropouts_detailed".format(inp_dir)    
+    # test_asn_fp = wandio.open(test_asn_fname, 'w')
+    test_asn_fp = open(test_asn_fname, 'w')    
 
+
+# Let's get ip to county mappings for the IP addresses that we pinged in each U.S. state    
 ip_to_county = {}
-inp_ips_fp = open(inp_ips_file)
+inp_ips_fp = wandio.open(inp_ips_file)
 sys.stderr.write("Opening inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
 for line in inp_ips_fp:
     parts = line.strip().split()
@@ -141,25 +163,33 @@ sys.stderr.write("Done reading inp_ips_fp at {0}\n".format(str(datetime.datetime
 
 # for ip in ip_to_as:
 #     sys.stdout.write("{0} {1}\n".format(ip, ip_to_as[ip]) )
-print len(ip_to_as)
+# print len(ip_to_as)
 
-tstart = int(sys.argv[1])
-tend = int(sys.argv[2])
+# Populate time series points for various aggregates
 
 county_asn_fps = {}
 county_fps = {}
 asn_fps = {}
 
+# TODO: Test next with Jan 21 and Jan 22
+test_tstart = 1578614400 # Jan 10 00:00:00 UTC 2020
+test_tend = 1578700800 # Jan 11 00:00:00 UTC 2020
+
 for this_t in range(tstart, tend, 600):
-    this_fname = "{0}/{1}_to_{2}".format(inp_dir, this_t, this_t + 600)
-    sys.stderr.write("Processing {0} at {1}\n".format(this_fname, str(datetime.datetime.now() ) ) )    
-    this_fp = open(this_fname, "r")
+    this_fname = "{0}/{1}_to_{2}.gz".format(inp_dir, this_t, this_t + 600)
+    sys.stderr.write("Processing {0} at {1}\n".format(this_fname, str(datetime.datetime.now() ) ) )
+
+    try:
+        this_fp = wandio.open(this_fname, "r")
+    except:
+        # Sometimes, we have missing data for some 10-minute rounds. Handle it.
+        continue
 
     # Testing code
-    # if test == 1:
-    #     if this_t >= 1567027800 and this_t <= 1567114200:        
-    #         test_fname = "{0}/{1}_to_{2}_with_county_asn".format(inp_dir, this_t, this_t + 600)
-    #         test_fp = open(test_fname, "w")
+    if test == 1:
+        if this_t >= test_tstart and this_t <= test_tend:
+            test_fname = "{0}/{1}_to_{2}_with_county_asn".format(inp_dir, this_t, this_t + 600)
+            test_fp = open(test_fname, "w")
             
     county_asn_to_status = {}
     county_to_status = {}
@@ -193,9 +223,9 @@ for this_t in range(tstart, tend, 600):
         elif status == 2:
             county_asn_to_status[county][asn]["newresp"] += 1
 
-        # if test == 1:
-        #     if this_t >= 1567027800 and this_t <= 1567114200:
-        #         test_fp.write("{0} {1} {2}\n".format(line[:-1], county, asn) )
+        if test == 1:
+            if this_t >= test_tstart and this_t <= test_tend:            
+                test_fp.write("{0} {1} {2}\n".format(line[:-1], county, asn) )
 
     for county in county_asn_to_status:
 
@@ -210,7 +240,12 @@ for this_t in range(tstart, tend, 600):
             n_d = this_d["dropout"]
 
             if asn not in county_asn_fps[county]:
-                county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county, asn), "w")
+                # county_asn_fps[county][asn] = wandio.open("{0}/resp_dropout_per_round_{1}_AS{2}.gz".format(inp_dir, county, asn), "w")
+                if must_append == 0:
+                    county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county, asn), "w")
+                else:
+                    county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county, asn), "a")                    
+                
 
             county_asn_fps[county][asn].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
             county_asn_fps[county][asn].flush()
@@ -237,7 +272,7 @@ for this_t in range(tstart, tend, 600):
 
     write_to_file(asn_to_status, asn_fps, isasn=True)
         
-    # if test == 1:
-    #     if this_t >= 1567027800 and this_t <= 1567114200:        
-    #         test_fp.close()
+    if test == 1:
+        if this_t >= test_tstart and this_t <= test_tend:                    
+            test_fp.close()
         

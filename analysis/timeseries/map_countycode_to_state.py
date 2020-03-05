@@ -19,7 +19,7 @@ for line in county_idxs_fp:
     idx_to_fqdn[idx] = fqdn
 
 for idx in idx_to_fqdn:
-    print idx, idx_to_fqdn[idx]
+    print idx, idx_to_fqdn[idx], idx_to_county[idx]
 
 
 
