@@ -312,9 +312,9 @@ ctrys = ['IR']
         
 if 'country' in mode:
     country_to_vals = {}
-    populate_idx_to_val(ctry_to_vals, ctrys)
+    populate_idx_to_val(country_to_vals, ctrys)
 
-print country_to_vals
+# print country_to_vals
     
 for tstamp in sorted(all_tstamps):
     if 'counties' in mode:
@@ -324,7 +324,7 @@ for tstamp in sorted(all_tstamps):
         set_keys_for_this_tstamp(asn_to_vals, asns, tstamp, mode, county_idx=None)
 
     if 'country' in mode:
-        set_keys_for_this_tstamp(asn_to_vals, ctrys, tstamp, mode, county_idx=None)        
+        set_keys_for_this_tstamp(country_to_vals, ctrys, tstamp, mode, county_idx=None)        
 
     if 'county-asn' in mode:
         for county_idx in county_asn_to_vals:
