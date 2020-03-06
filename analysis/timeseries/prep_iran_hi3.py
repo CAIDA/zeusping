@@ -31,6 +31,11 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
 
         if county_asn == True:
             inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}.gz".format(inp_dir, county_idx, this_k)
+
+        elif 'country' in mode:
+            inp_fname = "{0}/resp_dropout_per_round".format(inp_dir, this_k)
+            print inp_fname
+            
         elif 'asns' in mode:
             # TODO: This is a temporary hack because I did not distinguish between AS209 and the county 209.
             # if 'counties' in mode and this_k == '209':
@@ -85,6 +90,9 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.dropout_addr_cnt".format(this_k)
+        elif 'country' in mode:
+            # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.geo.netacuity.AS.IR.dropout_addr_cnt"            
 
         print(key)
         idx = kp.get_key(key)
@@ -100,7 +108,10 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(idx_to_fqdn[this_k])            
         elif 'asns' in mode:
             # key = "projects.zeusping.test1.routing.asn.{0}.previously_responsive_addr_cnt".format(this_k)
-            key = "projects.zeusping.test1.routing.asn.{0}.responsive_addr_cnt".format(this_k)            
+            key = "projects.zeusping.test1.routing.asn.{0}.responsive_addr_cnt".format(this_k)
+        elif 'country' in mode:
+            # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.geo.netacuity.AS.IR.responsive_addr_cnt"            
 
         idx = kp.get_key(key)
         if idx is None:
@@ -115,7 +126,11 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(idx_to_fqdn[this_k])            
         elif 'asns' in mode:
             # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
-            key = "projects.zeusping.test1.routing.asn.{0}.antidropout_addr_cnt".format(this_k)            
+            key = "projects.zeusping.test1.routing.asn.{0}.antidropout_addr_cnt".format(this_k)
+
+        elif 'country' in mode:
+            # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.geo.netacuity.AS.IR.antidropout_addr_cnt"
         
         idx = kp.get_key(key)
         if idx is None:
@@ -293,13 +308,23 @@ if 'county-asn' in mode:
         # TODO: Call populate_idx_to_val on a county-ASN only if that ASN is pinged in the county perhaps?
         populate_idx_to_val(county_asn_to_vals[county_idx], asns, county_asn=True, county_idx=county_idx)
 
+ctrys = ['IR']
+        
+if 'country' in mode:
+    country_to_vals = {}
+    populate_idx_to_val(ctry_to_vals, ctrys)
 
+print country_to_vals
+    
 for tstamp in sorted(all_tstamps):
     if 'counties' in mode:
         set_keys_for_this_tstamp(county_to_vals, counties, tstamp, mode, county_idx=None)
         
     if 'asns' in mode:
         set_keys_for_this_tstamp(asn_to_vals, asns, tstamp, mode, county_idx=None)
+
+    if 'country' in mode:
+        set_keys_for_this_tstamp(asn_to_vals, ctrys, tstamp, mode, county_idx=None)        
 
     if 'county-asn' in mode:
         for county_idx in county_asn_to_vals:
