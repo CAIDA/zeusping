@@ -9,7 +9,7 @@ import subprocess
 
 
 reqd_dir = sys.argv[1]
-processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_{0}'.format(reqd_dir)
+processed_op_dir = sys.argv[2]
 
 
 def run_mv(f, this_t):
@@ -20,6 +20,7 @@ def run_mv(f, this_t):
 
 
     mkdir_cmd = 'mkdir -p {0}/{1}_to_{2}/'.format(processed_op_dir, round_tstart, round_tend)
+    sys.stderr.write("{0}\n".format(mkdir_cmd) )    
     args = shlex.split(mkdir_cmd)
     try:
         subprocess.check_call(args)
@@ -44,7 +45,7 @@ file_ct = 0
 reqd_time = time.time() - 3600 # 1 hour before current time
 # reqd_time = 1577181600
 
-unsorted_files = glob.glob('/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/{0}/opaws*'.format(reqd_dir) )
+unsorted_files = glob.glob('{0}/opaws*'.format(reqd_dir) )
 for f in unsorted_files:
     parts = f.strip().split('.')
     this_t = int(parts[1])
