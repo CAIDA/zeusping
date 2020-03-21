@@ -1,38 +1,50 @@
 #!/usr/bin/env python3
-# TODO: Use pyipmeta to get regions per country (like each region in IR)
 
 import sys
 import pyipmeta
 from collections import namedtuple
-# import wandio
 import datetime
 
-test = 0
 
-tstart = int(sys.argv[1])
-tend = int(sys.argv[2])
-inp_dir = sys.argv[3]
-netacq_date = sys.argv[4]
+def populate_ip_to_as(ctry_ip_to_as_file, ip_to_as):
+    
+    ctry_ip_to_as_fp = open(ctry_ip_to_as_file)
+    for line in ctry_ip_to_as_fp:
 
-IS_INPUT_COMPRESSED = 0
+        parts = line.strip().split()
+        ctry = parts[0]
+        ip_to_as_file = parts[1]
 
-# Load pyipmeta in order to perform region lookups per address
-provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
-ipm = pyipmeta.IpMeta(provider="netacq-edge",
-                      provider_config=provider_config_str)
+        if IS_INPUT_COMPRESSED == 1:
+            ip_to_as_fp = wandio.open(ip_to_as_file)
+        else:
+            ip_to_as_fp = open(ip_to_as_file)
 
-idx_to_loc = {}
-# region_idxs_fp = wandio.open('/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz')
-# for line in region_idxs_fp:
-for line in sys.stdin:
-    parts = line.strip().split(',')
-    idx = parts[0].strip()
-    fqdn = parts[1].strip()
-    region_name = parts[2][1:-1] # Get rid of quotes
-    idx_to_loc[idx] = region_name
-    # idx_to_fqdn[idx] = fqdn
+        sys.stderr.write("Opening ip_to_as_fp for {0} at {1}\n".format(ctry, str(datetime.datetime.now() ) ) )
+        line_ct = 0
 
+        for line in ip_to_as_fp:
 
+            line_ct += 1
+
+            if line_ct%1000000 == 0:
+                sys.stderr.write("{0} ip_to_as lines for {1} read at {2}\n".format(line_ct, ctry, str(datetime.datetime.now() ) ) )
+
+            parts = line.strip().split('|')
+
+            if (len(parts) != 2):
+                continue
+
+            # addr = parts[0].strip()
+            asn = parts[1].strip()
+
+            addr = parts[0].strip()
+
+            ip_to_as[addr] = asn
+
+        sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(ctry, str(datetime.datetime.now() ) ) )
+
+        
 def update_aggregate_details(aggregator_dict, n_r, n_n, n_d):
     aggregator_dict["resp"] += n_r
     aggregator_dict["newresp"] += n_n
@@ -63,9 +75,22 @@ def write_to_file(key_to_status, fps, isasn = False):
         fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
         # fps[key].flush()
         
-    
-ip_to_as = {}
-ip_to_as_file = sys.argv[5] # Each line of this file is a path to an AS file for a U.S. state
+
+
+# Global variables
+test = 0
+py_ver = 3
+if py_ver == 3:
+    # wandio does not have a Python3 module. So if we're using Python3, we have to assume that the input files are uncompressed.
+    IS_INPUT_COMPRESSED = 0
+elif py_ver == 2:
+    IS_INPUT_COMPRESSED = 1
+
+tstart = int(sys.argv[1])
+tend = int(sys.argv[2])
+inp_dir = sys.argv[3]
+netacq_date = sys.argv[4]
+ctry_ip_to_as_file = sys.argv[5] # Each line of this file is a path to an AS file for a U.S. state
 
 if (len(sys.argv) > 6):
    if sys.argv[6] == 'append': # If we mess up processing and want to append to files instead of overwriting files
@@ -75,51 +100,31 @@ if (len(sys.argv) > 6):
 else:
     must_append = 0
     
+if py_ver == 2:
+    import wandio
+    
+# Load pyipmeta in order to perform region lookups per address
+provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+ipm = pyipmeta.IpMeta(provider="netacq-edge",
+                      provider_config=provider_config_str)
 
-ip_to_as_fp = open(ip_to_as_file)
-for line in ip_to_as_fp:
-
-    parts = line.strip().split()
-    ctry = parts[0]
-    ctry_ip_to_as_file = parts[1]
-
-    if IS_INPUT_COMPRESSED == 1:
-        ip_to_as_fp = wandio.open(ctry_ip_to_as_file)
-    else:
-        ip_to_as_fp = open(ctry_ip_to_as_file)
-        
-    sys.stderr.write("Opening ip_to_as_fp for {0} at {1}\n".format(ctry, str(datetime.datetime.now() ) ) )
-    line_ct = 0
-
-    for line in ip_to_as_fp:
-
-        line_ct += 1
-
-        if line_ct%1000000 == 0:
-            sys.stderr.write("{0} ip_to_as lines for {1} read at {2}\n".format(line_ct, ctry, str(datetime.datetime.now() ) ) )
-
-        parts = line.strip().split('|')
-
-        if (len(parts) != 2):
-            continue
-
-        # addr = parts[0].strip()
-        asn = parts[1].strip()
-
-        addr = parts[0].strip()
-
-        ip_to_as[addr] = asn
-
-    sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(ctry, str(datetime.datetime.now() ) ) )
+# Obtain mapping between region/county (i.e. loc) idx to loc
+idx_to_loc = {}
+# region_idxs_fp = wandio.open('/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz')
+# for line in region_idxs_fp:
+for line in sys.stdin:
+    parts = line.strip().split(',')
+    idx = parts[0].strip()
+    fqdn = parts[1].strip()
+    region_name = parts[2][1:-1] # Get rid of quotes
+    idx_to_loc[idx] = region_name
+    # idx_to_fqdn[idx] = fqdn
 
 
+ip_to_as = {}
+populate_ip_to_as(ctry_ip_to_as_file, ip_to_as)
 # reqd_ips = set()
 
-if IS_INPUT_COMPRESSED == 1:
-    inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)
-else:
-    inp_ips_file = "{0}/addr_to_dropouts".format(inp_dir)
-    
 if test == 1:
     # test_asn_fname = "{0}/addr_to_dropouts_detailed.gz".format(inp_dir)
     test_asn_fname = "{0}/addr_to_dropouts_detailed".format(inp_dir)    
@@ -130,8 +135,10 @@ if test == 1:
 # Let's get ip to region mappings for the IP addresses that we pinged in each country
 ip_to_loc = {}
 if IS_INPUT_COMPRESSED == 1:
+    inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)    
     inp_ips_fp = wandio.open(inp_ips_file)
 else:
+    inp_ips_file = "{0}/addr_to_dropouts".format(inp_dir)    
     inp_ips_fp = open(inp_ips_file)
     
 sys.stderr.write("Opening inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
@@ -184,7 +191,7 @@ for this_t in range(tstart, tend, 600):
             this_fp = wandio.open(this_fname, "r")
         else:
             this_fp = open(this_fname, "r")
-    except:
+    except IOError:            
         # Sometimes, we have missing data for some 10-minute rounds. Handle it.
         continue
 
