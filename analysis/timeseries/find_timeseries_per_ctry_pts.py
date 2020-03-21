@@ -2,9 +2,9 @@
 # TODO: Use pyipmeta to get regions per country (like each region in IR)
 
 import sys
-# import pyipmeta
+import pyipmeta
 from collections import namedtuple
-import wandio
+# import wandio
 import datetime
 
 test = 0
@@ -14,10 +14,23 @@ tend = int(sys.argv[2])
 inp_dir = sys.argv[3]
 netacq_date = sys.argv[4]
 
+IS_INPUT_COMPRESSED = 0
+
 # Load pyipmeta in order to perform region lookups per address
-# provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
-# ipm = pyipmeta.IpMeta(provider="netacq-edge",
-#                       provider_config=provider_config_str)
+provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+ipm = pyipmeta.IpMeta(provider="netacq-edge",
+                      provider_config=provider_config_str)
+
+idx_to_loc = {}
+# region_idxs_fp = wandio.open('/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz')
+# for line in region_idxs_fp:
+for line in sys.stdin:
+    parts = line.strip().split(',')
+    idx = parts[0].strip()
+    fqdn = parts[1].strip()
+    region_name = parts[2][1:-1] # Get rid of quotes
+    idx_to_loc[idx] = region_name
+    # idx_to_fqdn[idx] = fqdn
 
 
 def update_aggregate_details(aggregator_dict, n_r, n_n, n_d):
@@ -48,7 +61,7 @@ def write_to_file(key_to_status, fps, isasn = False):
         n_d = this_d["dropout"]
         
         fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
-        fps[key].flush()
+        # fps[key].flush()
         
     
 ip_to_as = {}
@@ -69,8 +82,12 @@ for line in ip_to_as_fp:
     parts = line.strip().split()
     ctry = parts[0]
     ctry_ip_to_as_file = parts[1]
-    
-    ip_to_as_fp = wandio.open(ctry_ip_to_as_file)
+
+    if IS_INPUT_COMPRESSED == 1:
+        ip_to_as_fp = wandio.open(ctry_ip_to_as_file)
+    else:
+        ip_to_as_fp = open(ctry_ip_to_as_file)
+        
     sys.stderr.write("Opening ip_to_as_fp for {0} at {1}\n".format(ctry, str(datetime.datetime.now() ) ) )
     line_ct = 0
 
@@ -98,7 +115,11 @@ for line in ip_to_as_fp:
 
 # reqd_ips = set()
 
-inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)
+if IS_INPUT_COMPRESSED == 1:
+    inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)
+else:
+    inp_ips_file = "{0}/addr_to_dropouts".format(inp_dir)
+    
 if test == 1:
     # test_asn_fname = "{0}/addr_to_dropouts_detailed.gz".format(inp_dir)
     test_asn_fname = "{0}/addr_to_dropouts_detailed".format(inp_dir)    
@@ -106,34 +127,38 @@ if test == 1:
     test_asn_fp = open(test_asn_fname, 'w')    
 
 
-# TODO: Let's get ip to region mappings for the IP addresses that we pinged in each country
-# TODO: Alistair said that res[0]['polygon_ids'][1] is the ID but I don't think so
+# Let's get ip to region mappings for the IP addresses that we pinged in each country
 ip_to_loc = {}
-# inp_ips_fp = wandio.open(inp_ips_file)
-# sys.stderr.write("Opening inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
-# for line in inp_ips_fp:
-#     parts = line.strip().split()
-#     ip = parts[0].strip()
-#     asn = ip_to_as[ip]
+if IS_INPUT_COMPRESSED == 1:
+    inp_ips_fp = wandio.open(inp_ips_file)
+else:
+    inp_ips_fp = open(inp_ips_file)
+    
+sys.stderr.write("Opening inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
+for line in inp_ips_fp:
+    parts = line.strip().split()
+    ip = parts[0].strip()
+    asn = ip_to_as[ip]
 
-#     # Find loc id
-#     loc_id = '-1'
-#     loc_name = 'UNK'
-#     res = ipm.lookup(ip)
-#     if len(res) != 0:
-#         if 'polygon_ids' in res[0]:
-#             loc_id = str(res[0]['polygon_ids'][0])
-#             if (loc_id) in idx_to_loc:
-#                 loc_name = idx_to_loc[(loc_id)]
+    # Find loc id
+    loc_id = '-1'
+    loc_name = 'UNK'
+    res = ipm.lookup(ip)
+    if len(res) != 0:
+        if 'polygon_ids' in res[0]:
+            # loc_id = str(res[0]['polygon_ids'][0]) # This is for county info
+            loc_id = str(res[0]['polygon_ids'][1]) # This is for region info
+            if (loc_id) in idx_to_loc:
+                loc_name = idx_to_loc[(loc_id)]
                 
-#     ip_to_loc[ip] = loc_id
+    ip_to_loc[ip] = loc_id
     
-#     if test == 1:
-#         test_asn_fp.write("{0} {1} {2} {3}\n".format(line[:-1], asn, loc_id, loc_name) )
+    if test == 1:
+        test_asn_fp.write("{0} {1} {2} {3}\n".format(line[:-1], asn, loc_id, loc_name) )
         
-#     # reqd_ips.add(ip)
+    # reqd_ips.add(ip)
     
-# sys.stderr.write("Done reading inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
+sys.stderr.write("Done reading inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
 
 
 # Populate time series points for various aggregates
@@ -142,16 +167,23 @@ loc_asn_fps = {}
 loc_fps = {}
 asn_fps = {}
 
-# TODO: Test next with Jan 21 and Jan 22
-test_tstart = 1578614400 # Jan 10 00:00:00 UTC 2020
-test_tend = 1578700800 # Jan 11 00:00:00 UTC 2020
+test_tstart = 1583020800 # Mar  1 00:00:00 UTC 2020
+test_tend = 1583107200 # Mar  2 00:00:00 UTC 2020
 
 for this_t in range(tstart, tend, 600):
-    this_fname = "{0}/{1}_to_{2}.gz".format(inp_dir, this_t, this_t + 600)
+
+    if IS_INPUT_COMPRESSED == 1:
+        this_fname = "{0}/{1}_to_{2}.gz".format(inp_dir, this_t, this_t + 600)
+    else:
+        this_fname = "{0}/{1}_to_{2}".format(inp_dir, this_t, this_t + 600)
+        
     sys.stderr.write("Processing {0} at {1}\n".format(this_fname, str(datetime.datetime.now() ) ) )
 
     try:
-        this_fp = wandio.open(this_fname, "r")
+        if IS_INPUT_COMPRESSED == 1:
+            this_fp = wandio.open(this_fname, "r")
+        else:
+            this_fp = open(this_fname, "r")
     except:
         # Sometimes, we have missing data for some 10-minute rounds. Handle it.
         continue
@@ -217,9 +249,8 @@ for this_t in range(tstart, tend, 600):
                 else:
                     loc_asn_fps[loc][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, loc, asn), "a")                    
                 
-
             loc_asn_fps[loc][asn].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
-            loc_asn_fps[loc][asn].flush()
+            # loc_asn_fps[loc][asn].flush()
 
             if loc not in loc_to_status:
                 loc_to_status[loc] = {"resp" : 0, "newresp" : 0, "dropout" : 0}
