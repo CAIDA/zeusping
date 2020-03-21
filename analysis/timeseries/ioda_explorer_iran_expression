@@ -1,0 +1,168 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.responsive_addr_cnt
+    )
+  ),
+  "IR responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.dropout_addr_cnt
+    )
+  ),
+  "IR dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.antidropout_addr_cnt
+    )
+  ),
+  "IR antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.58224.responsive_addr_cnt
+    )
+  ),
+  "AS58224 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.58224.dropout_addr_cnt
+    )
+  ),
+  "AS58224 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.58224.antidropout_addr_cnt
+    )
+  ),
+  "AS58224 antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.12880.responsive_addr_cnt
+    )
+  ),
+  "AS12880 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.12880.dropout_addr_cnt
+    )
+  ),
+  "AS12880 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.12880.antidropout_addr_cnt
+    )
+  ),
+  "AS12880 antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.16322.responsive_addr_cnt
+    )
+  ),
+  "AS16322 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.16322.dropout_addr_cnt
+    )
+  ),
+  "AS16322 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.16322.antidropout_addr_cnt
+    )
+  ),
+  "AS16322 antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.31549.responsive_addr_cnt
+    )
+  ),
+  "AS31549 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.31549.dropout_addr_cnt
+    )
+  ),
+  "AS31549 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.31549.antidropout_addr_cnt
+    )
+  ),
+  "AS31549 antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.197207.responsive_addr_cnt
+    )
+  ),
+  "AS197207 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.197207.dropout_addr_cnt
+    )
+  ),
+  "AS197207 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.197207.antidropout_addr_cnt
+    )
+  ),
+  "AS197207 antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.44244.responsive_addr_cnt
+    )
+  ),
+  "AS44244 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.44244.dropout_addr_cnt
+    )
+  ),
+  "AS44244 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.44244.antidropout_addr_cnt
+    )
+  ),
+  "AS44244 antidropout_addr_cnt"
+)
