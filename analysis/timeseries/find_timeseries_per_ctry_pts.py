@@ -72,13 +72,13 @@ def write_to_file(key_to_status, fps, isasn = False):
         n_n = this_d["newresp"]
         n_d = this_d["dropout"]
         
-        fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
+        fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
         # fps[key].flush()
         
 
 
 # Global variables
-test = 0
+test = 1
 py_ver = 3
 if py_ver == 3:
     # wandio does not have a Python3 module. So if we're using Python3, we have to assume that the input files are uncompressed.
@@ -256,7 +256,7 @@ for this_t in range(tstart, tend, 600):
                 else:
                     loc_asn_fps[loc][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, loc, asn), "a")                    
                 
-            loc_asn_fps[loc][asn].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
+            loc_asn_fps[loc][asn].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
             # loc_asn_fps[loc][asn].flush()
 
             if loc not in loc_to_status:

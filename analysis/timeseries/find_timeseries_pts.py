@@ -56,7 +56,7 @@ def write_to_file(key_to_status, fps, isasn = False):
         n_n = this_d["newresp"]
         n_d = this_d["dropout"]
         
-        fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
+        fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
         fps[key].flush()
         
     
@@ -247,7 +247,7 @@ for this_t in range(tstart, tend, 600):
                     county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county, asn), "a")                    
                 
 
-            county_asn_fps[county][asn].write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
+            county_asn_fps[county][asn].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
             county_asn_fps[county][asn].flush()
 
             if county not in county_to_status:
