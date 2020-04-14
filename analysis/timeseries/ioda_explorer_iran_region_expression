@@ -1,0 +1,120 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.responsive_addr_cnt
+    )
+  ),
+  "IR responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.dropout_addr_cnt
+    )
+  ),
+  "IR dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.antidropout_addr_cnt
+    )
+  ),
+  "IR antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+	projects.zeusping.test1.geo.netacuity.AS.IR.1829.responsive_addr_cnt
+    )
+  ),
+  "Tehran responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1829.dropout_addr_cnt
+    )
+  ),
+  "Tehran dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1829.antidropout_addr_cnt
+    )
+  ),
+  "Tehran antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+	projects.zeusping.test1.geo.netacuity.AS.IR.1848.responsive_addr_cnt
+    )
+  ),
+  "Razavi_Khorasan responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1848.dropout_addr_cnt
+    )
+  ),
+  "Razavi_Khorasan dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1848.antidropout_addr_cnt
+    )
+  ),
+  "Razavi_Khorasan antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+	projects.zeusping.test1.geo.netacuity.AS.IR.1824.responsive_addr_cnt
+    )
+  ),
+  "Esfahan responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1824.dropout_addr_cnt
+    )
+  ),
+  "Esfahan dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1824.antidropout_addr_cnt
+    )
+  ),
+  "Esfahan antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+	projects.zeusping.test1.geo.netacuity.AS.IR.1825.responsive_addr_cnt
+    )
+  ),
+  "Fars responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1825.dropout_addr_cnt
+    )
+  ),
+  "Fars dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.AS.IR.1825.antidropout_addr_cnt
+    )
+  ),
+  "Fars antidropout_addr_cnt"
+)
