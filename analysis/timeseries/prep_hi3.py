@@ -32,7 +32,7 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
         if county_asn == True:
             inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}.gz".format(inp_dir, county_idx, this_k)
         elif 'asns' in mode:
-            # TODO: This is a temporary hack because I did not distinguish between AS209 and the county 209.
+            # The following is a temporary hack because I did not distinguish between AS209 and the county 209. I have since prepended the AS files with _AS<ASnum> to prevent this ambiguity.            
             # if 'counties' in mode and this_k == '209':
             #     continue
             inp_fname = "{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, this_k)
@@ -50,17 +50,17 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
         for line in inp_fp:
             parts = line.strip().split()
             tstamp = int(parts[0].strip() )
-            n_r = int(parts[1].strip() )
-            n_n = int(parts[2].strip() )
-            n_d = int(parts[3].strip() )
+            n_d = int(parts[1].strip() )
+            n_r = int(parts[2].strip() )
+            n_a = int(parts[3].strip() )
 
             all_tstamps.add(tstamp)
 
             if this_k not in this_d:
-                this_d[this_k] = {"n_d" : {}, "n_r" : {}, "n_n" : {} }
+                this_d[this_k] = {"n_d" : {}, "n_r" : {}, "n_a" : {} }
             this_d[this_k]["n_d"][tstamp] = n_d
             this_d[this_k]["n_r"][tstamp] = n_r
-            this_d[this_k]["n_n"][tstamp] = n_n            
+            this_d[this_k]["n_a"][tstamp] = n_a            
 
 
 def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None):
@@ -74,7 +74,7 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
 
         n_d = this_d[this_k]["n_d"][tstamp]
         n_r = this_d[this_k]["n_r"][tstamp]
-        n_n = this_d[this_k]["n_n"][tstamp]
+        n_a = this_d[this_k]["n_a"][tstamp]
 
         if 'county-asn' in mode:
             # key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, this_k)
@@ -111,7 +111,7 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
         idx = kp.get_key(key)
         if idx is None:
             idx = kp.add_key(key)
-        kp.set(idx, n_n)
+        kp.set(idx, n_a)
 
         if 'numpinged' in mode:
             if 'county-asn' in mode:
@@ -161,15 +161,6 @@ ts.enable_backend(be)
 
 kp = ts.new_keypackage(reset=True)
 # print kp
-
-idx_to_county = {}
-# Populate county_to_id
-county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
-for line in county_idxs_fp:
-    parts = line.strip().split(',')
-    idx = parts[0].strip()
-    county_name = parts[2][1:-1] # Get rid of quotes
-    idx_to_county[idx] = county_name
 
 counties = idx_to_county.keys()
 
