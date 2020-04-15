@@ -165,4 +165,28 @@ alias(
     )
   ),
   "AS44244 antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.56402.responsive_addr_cnt
+    )
+  ),
+  "AS56402 responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.56402.dropout_addr_cnt
+    )
+  ),
+  "AS56402 dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.routing.asn.56402.antidropout_addr_cnt
+    )
+  ),
+  "AS56402 antidropout_addr_cnt"
 )
