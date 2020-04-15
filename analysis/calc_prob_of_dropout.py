@@ -3,9 +3,6 @@ import sys
 import datetime
 from collections import defaultdict
 
-
-
-
 start_t = int(sys.argv[1])
 end_t = int(sys.argv[2])
 
@@ -29,8 +26,7 @@ for this_t in range(start_t, end_t, 600):
     
     try:
         ip_fp = open(ip_fname)
-    except:
-        # TODO: This exception is perhaps too broad
+    except IOError:
         continue
 
     n_r = 0
@@ -55,7 +51,7 @@ for this_t in range(start_t, end_t, 600):
             n_n += 1
             addr_to_newresps[addr] += 1
 
-    resp_dropout_per_round_fp.write("{0} {1} {2} {3}\n".format(this_t, n_r, n_n, n_d) )
+    resp_dropout_per_round_fp.write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
     resp_dropout_per_round_fp.flush()
 
     sys.stderr.write("{0}\n\n".format(str(datetime.datetime.now() ) ) )
