@@ -9,6 +9,7 @@ import datetime
 import wandio
 
 data_dir = sys.argv[1]
+campaign = sys.argv[2]
 
 # Load Swift credentials
 # NOTE: This did not work (apparently 'source' is a shell-specific command), so I just source ~/.limbo-cred in for_cron_swiftsyncer.sh
@@ -22,7 +23,6 @@ data_dir = sys.argv[1]
 # except subprocess.CalledProcessError:
 #     sys.stderr.write("Source limbo-cred command failed; exiting\n")
 #     sys.exit(1)
-
 
 while True:
 
@@ -70,10 +70,10 @@ while True:
 
         if was_compressed == 1:
             # The file had already been compressed. No need to add the 'gz' extension
-            object_name = 'datasource=zeusping/campaign=CO_VT_RI/year={0}/month={1}/day={2}/hour={3}/{4}'.format(round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"), file_name)
+            object_name = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/{5}'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"), file_name)
         else:
             # We just compressed the file. Add the 'gz' extension
-            object_name = 'datasource=zeusping/campaign=CO_VT_RI/year={0}/month={1}/day={2}/hour={3}/{4}.gz'.format(round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"), file_name)
+            object_name = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/{5}.gz'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"), file_name)            
         # print object_name
 
         if was_compressed == 1:

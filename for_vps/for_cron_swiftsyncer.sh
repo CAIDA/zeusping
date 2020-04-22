@@ -11,7 +11,7 @@ fi
 
 source ~/.limbo-cred
 cd /home/ubuntu/zeusping/for_testing/
-python swiftsync_all_but_latest.py /home/ubuntu/zeusping/for_testing/op_CO_VT_RI/ > ./swiftsync_all_but_latest.log 2>&1 &
+python swiftsync_all_but_latest.py /home/ubuntu/zeusping/for_testing/op_$1/ $1 > ./swiftsync_all_but_latest.log 2>&1 &
 
 echo $! > "${PIDFILE}"
 chmod 644 "${PIDFILE}"

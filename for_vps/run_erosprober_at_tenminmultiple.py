@@ -15,7 +15,13 @@ if addr_file == 'CO_VT_RI':
         'ncal1' : 'awsncal1',
         'nvir1' : 'awsnvir1',
     }
-# elif addr_file == '':
+elif addr_file == 'iran_addrs':
+    vp_to_oppref = {
+        'bahr1' : 'awsbahr1',
+        'mumb1' : 'awsmumb1',
+        'soul1' : 'awssoul1',
+        'nvir1' : 'awsnvir1',
+    }
 
 addr_file_sorted = '{0}_{1}'.format(addr_file, vp)
 
@@ -43,7 +49,7 @@ multiple_of_ten = int(curr_time/600)
 next_multiple = multiple_of_ten*600 + 600
 # print(next_multiple)
 
-time_to_sleep = next_multiple - curr_time
+time_to_sleep = next_multiple - curr_time - 2 # Because erosprober typically takes a couple of seconds to launch
 # print time_to_sleep
 sys.stderr.write("Going to sleep for {0} seconds until multiple of 10\n".format(time_to_sleep) )
 time.sleep(time_to_sleep)
