@@ -22,12 +22,16 @@ round_tstart= int(sys.argv[2])
 reqd_asn = sys.argv[3]
 addr_metadata_fname = sys.argv[4]
 num_adjacent_rounds = int(sys.argv[5])
+is_compressed = int(sys.argv[6])
 # op_pref = sys.argv[4]
 
 ROUND_SECS = 10 * 60 # Number of seconds in a 10-minute round
 
 ip_to_metadata = {}
-addr_metadata_fp = wandio.open(addr_metadata_fname)
+if is_compressed == 1:
+    addr_metadata_fp = wandio.open(addr_metadata_fname)
+else:
+    addr_metadata_fp = open(addr_metadata_fname)
 for line in addr_metadata_fp:
     parts = line.strip().split()
     ip = parts[0].strip()
@@ -37,7 +41,6 @@ for line in addr_metadata_fp:
     county_name = ''
     for elem in parts[6:]:
         county_name += '{0} '.format(elem)
-    
 
     ip_to_metadata[ip] = {"asn" : asn, "county_id" : county_id, "county_name" : county_name}
 
@@ -65,8 +68,12 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
 s24_to_status = {}
 # dropout_s24s contains s24s which had at least one dropout in the specified round. We will use dropout_s24s for memory efficiency by preventing s24_to_status from becoming too large. Although we have data from other /24s in this round, we care only about /24s which had at least one dropout in this analysis
 dropout_s24s = set()
-inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
-inp_fp = wandio.open(inp_fname)
+if is_compressed == 1:
+    inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
+    inp_fp = wandio.open(inp_fname)
+else:
+    inp_fname = "{0}/{1}_to_{2}".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
+    inp_fp = open(inp_fname)
 for line in inp_fp:
     parts = line.strip().split()
 
@@ -119,8 +126,13 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
         continue
     
     temp_round_tstart = round_tstart + roun*ROUND_SECS
-    temp_inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, temp_round_tstart, temp_round_tstart + ROUND_SECS)
-    temp_inp_fp = wandio.open(temp_inp_fname)
+
+    if is_compressed == 1:
+        temp_inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, temp_round_tstart, temp_round_tstart + ROUND_SECS)
+        temp_inp_fp = wandio.open(temp_inp_fname)
+    else:
+        temp_inp_fname = "{0}/{1}_to_{2}".format(inp_path, temp_round_tstart, temp_round_tstart + ROUND_SECS)
+        temp_inp_fp = open(temp_inp_fname)
 
     for line in temp_inp_fp:
         parts = line.strip().split()
@@ -147,19 +159,21 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
                 s24_to_status_set[roun][s24] =  {"d" : set(), "r" : set(), "a": set()}
 
             s24_to_status_set[roun][s24][status].add(addr)
-            
-            
                 
                 
 inp_fname_parts = inp_fname.strip().split('_')
-round_end_time_epoch = int(inp_fname_parts[-1][:-3])
+if is_compressed == 1:
+    round_end_time_epoch = int(inp_fname_parts[-1][:-3])
+else:
+    round_end_time_epoch = int(inp_fname_parts[-1])
 round_start_time_epoch = round_end_time_epoch - ROUND_SECS
 
 this_h_dt = datetime.datetime.utcfromtimestamp(round_start_time_epoch)
 this_h_dt_str = this_h_dt.strftime("%Y_%m_%d_%H_%M")
 
 
-mkdir_cmd = 'mkdir -p ./data/'
+op_dir = '{0}_{1}_to_{2}'.format(this_h_dt_str, round_start_time_epoch, round_end_time_epoch)
+mkdir_cmd = 'mkdir -p ./data/{0}'.format(op_dir)
 args = shlex.split(mkdir_cmd)
 try:
     subprocess.check_call(args)
@@ -169,9 +183,9 @@ except subprocess.CalledProcessError:
 
     
 # for s24 in s24_to_status:
-op_s24_fname = './data/{0}_{1}_to_{2}_{3}_s24'.format(this_h_dt_str, round_start_time_epoch, round_end_time_epoch, asn)
+op_s24_fname = './data/{0}/{1}_s24'.format(op_dir, reqd_asn)
 op_s24_fp = open(op_s24_fname, 'w')
-op_county_s24_fname = './data/{0}_{1}_to_{2}_{3}_county_s24'.format(this_h_dt_str, round_start_time_epoch, round_end_time_epoch, asn)
+op_county_s24_fname = './data/{0}/{1}_county_s24'.format(op_dir, reqd_asn)
 op_county_s24_fp = open(op_county_s24_fname, 'w')
 for s24 in dropout_s24s:
     total_r = 0
@@ -190,7 +204,7 @@ for s24 in dropout_s24s:
     op_s24_fp.write("{0}|{1}|{2}|{3}\n".format(s24, total_d, total_r, total_a ) )    
 
 
-op_s24_set_fname = './data/{0}_{1}_to_{2}_{3}_s24_set'.format(this_h_dt_str, round_start_time_epoch, round_end_time_epoch, asn)
+op_s24_set_fname = './data/{0}/{1}_s24_set'.format(op_dir, reqd_asn)
 op_s24_set_fp = open(op_s24_set_fname, 'w')
 for s24 in dropout_s24s:
 
