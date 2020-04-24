@@ -66,7 +66,7 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
     s24_to_status_set[roun] = {}
 
 s24_to_status = {}
-# dropout_s24s contains s24s which had at least one dropout in the specified round. We will use dropout_s24s for memory efficiency by preventing s24_to_status from becoming too large. Although we have data from other /24s in this round, we care only about /24s which had at least one dropout in this analysis
+# dropout_s24s contains s24s which had at least one dropout in the specified round. We will use dropout_s24s for memory efficiency by preventing s24_to_status_set from becoming too large. Although we have data from other /24s in this round, we care only about /24s which had at least one dropout in this analysis
 dropout_s24s = set()
 if is_compressed == 1:
     inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
@@ -182,12 +182,14 @@ except subprocess.CalledProcessError:
     sys.exit(1)
 
     
-# for s24 in s24_to_status:
+
 op_s24_fname = './data/{0}/{1}_s24'.format(op_dir, reqd_asn)
 op_s24_fp = open(op_s24_fname, 'w')
 op_county_s24_fname = './data/{0}/{1}_county_s24'.format(op_dir, reqd_asn)
 op_county_s24_fp = open(op_county_s24_fname, 'w')
-for s24 in dropout_s24s:
+
+# for s24 in dropout_s24s:
+for s24 in s24_to_status:
     total_r = 0
     total_d = 0
     total_a = 0
