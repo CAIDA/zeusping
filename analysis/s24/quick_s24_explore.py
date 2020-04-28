@@ -6,6 +6,9 @@
 
 # Open previous file by subtracting 600 * N from start_time.
 
+# NOTE NOTE: Dropouts and anti-dropouts are unions of addresses. Responsive addresses are intersections of addresses across *all* rounds. Thus, addresses that dropped out, or that had an anti-dropout, will never be responsive. Consider, for example an anti-dropout address in round -N. Since that address hadn't been considered "responsive" at the beginning of round -N (it hadn't been responsive in round -(N+1) and it would have a status of "anti-dropout" in round -N), that address will be absent from at least one round's responsive address set and will therefore not be a part of the union.
+# TODO: Print sorted union of responsive addresses from each /24
+
 
 import sys
 # import pyipmeta
@@ -229,6 +232,9 @@ for s24 in dropout_s24s:
             # If there were not even responsive addresses in this /24, then the set of addresses that responded across all these rounds contains 0 elements
             intersection_r = set()
 
+    # Let's ensure that intersection_r contains no addresses from union_d
+    intersection_r = intersection_r - union_d
+            
     # op_s24_set_fp.write("{0}\t{1}|{2}|{3}\t{4}|{5}|{6}\t".format(s24, len(s24_to_status_set[0][s24]['d']), len(s24_to_status_set[0][s24]['r']), len(s24_to_status_set[0][s24]['a']), len(union_d), len(intersection_r), len(union_a) ) )            
     op_s24_set_fp.write("{0}\t|{1}|{2}|{3}\t".format(s24, len(union_d), len(intersection_r), len(union_a) ) )
 
