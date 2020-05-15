@@ -21,7 +21,7 @@ import shlex
 import subprocess
 
 inp_path = sys.argv[1]
-round_tstart= int(sys.argv[2])
+d_round_epoch= int(sys.argv[2])
 reqd_asn = sys.argv[3]
 addr_metadata_fname = sys.argv[4]
 num_adjacent_rounds = int(sys.argv[5])
@@ -72,10 +72,10 @@ s24_to_status = {}
 # dropout_s24s contains s24s which had at least one dropout in the specified round. We will use dropout_s24s for memory efficiency by preventing s24_to_status_set from becoming too large. Although we have data from other /24s in this round, we care only about /24s which had at least one dropout in this analysis
 dropout_s24s = set()
 if is_compressed == 1:
-    inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
+    inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, d_round_epoch, d_round_epoch + ROUND_SECS )
     inp_fp = wandio.open(inp_fname)
 else:
-    inp_fname = "{0}/{1}_to_{2}".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
+    inp_fname = "{0}/{1}_to_{2}".format(inp_path, d_round_epoch, d_round_epoch + ROUND_SECS )
     inp_fp = open(inp_fname)
 for line in inp_fp:
     parts = line.strip().split()
@@ -128,7 +128,7 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
     if roun == 0:
         continue
     
-    temp_round_tstart = round_tstart + roun*ROUND_SECS
+    temp_round_tstart = d_round_epoch + roun*ROUND_SECS
 
     if is_compressed == 1:
         temp_inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, temp_round_tstart, temp_round_tstart + ROUND_SECS)
@@ -164,18 +164,22 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
             s24_to_status_set[roun][s24][status].add(addr)
                 
                 
-inp_fname_parts = inp_fname.strip().split('_')
-if is_compressed == 1:
-    round_end_time_epoch = int(inp_fname_parts[-1][:-3])
-else:
-    round_end_time_epoch = int(inp_fname_parts[-1])
-round_start_time_epoch = round_end_time_epoch - ROUND_SECS
+# inp_fname_parts = inp_fname.strip().split('_')
+# if is_compressed == 1:
+#     round_end_time_epoch = int(inp_fname_parts[-1][:-3])
+# else:
+#     round_end_time_epoch = int(inp_fname_parts[-1])
+# round_start_time_epoch = round_end_time_epoch - ROUND_SECS
 
-this_h_dt = datetime.datetime.utcfromtimestamp(round_start_time_epoch)
+# this_h_dt = datetime.datetime.utcfromtimestamp(round_start_time_epoch)
+# this_h_dt_str = this_h_dt.strftime("%Y_%m_%d_%H_%M")
+
+this_h_dt = datetime.datetime.utcfromtimestamp(d_round_epoch)
 this_h_dt_str = this_h_dt.strftime("%Y_%m_%d_%H_%M")
 
+d_round_endtime_epoch = d_round_epoch + ROUND_SECS
 
-op_dir = '{0}_{1}_to_{2}'.format(this_h_dt_str, round_start_time_epoch, round_end_time_epoch)
+op_dir = '{0}_{1}_to_{2}'.format(this_h_dt_str, d_round_epoch, d_round_endtime_epoch)
 mkdir_cmd = 'mkdir -p ./data/{0}'.format(op_dir)
 args = shlex.split(mkdir_cmd)
 try:

@@ -1,6 +1,6 @@
 
-# Ideally, we would specify a round_tstart and a round_tend.
-# Then for each address that experienced a dropout in the round_tstart +- adjacent rounds, we would list the rounds when addresses recovered. Rounds where the most addresses recovered *may* be signify the end of the outage. Caveats: If the recoveries are distributed across lots of non-adjacent rounds, suggestive that the addresses simply went back into the provider's DHCP pool.
+# We specify a round where a dropout occurred (d_round_epoch). We also specify a round until which we want to analyze recoveries (u_round_epoch).
+# Then for each address that experienced a dropout in the d_round_epoch +- adjacent rounds, we would list the rounds when addresses recovered. Rounds where the most addresses recovered *may* be signify the end of the outage. Caveats: If the recoveries are distributed across lots of non-adjacent rounds, suggestive that the addresses simply went back into the provider's DHCP pool.
 
 import sys
 # import pyipmeta
@@ -14,8 +14,8 @@ import shlex
 import subprocess
 
 inp_path = sys.argv[1]
-round_tstart = int(sys.argv[2])
-round_tend = int(sys.argv[3])
+d_round_epoch = int(sys.argv[2])
+u_round_epoch = int(sys.argv[3])
 reqd_asn = sys.argv[4]
 addr_metadata_fname = sys.argv[5]
 num_adjacent_rounds = int(sys.argv[6])
@@ -44,15 +44,19 @@ for line in addr_metadata_fp:
 # Begin by identifying all the addresses that dropped out in this (and adjacent) rounds belonging to reqd_asn
 dropout_addrs = set()
 for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
+
+    temp_round_tstart = d_round_epoch + roun*ROUND_SECS
     
     if is_compressed == 1:
-        inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
-        inp_fp = wandio.open(inp_fname)
+        temp_inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, temp_round_tstart, temp_round_tstart + ROUND_SECS )
+        temp_inp_fp = wandio.open(temp_inp_fname)
     else:
-        inp_fname = "{0}/{1}_to_{2}".format(inp_path, round_tstart, round_tstart + ROUND_SECS )
-        inp_fp = open(inp_fname)
+        temp_inp_fname = "{0}/{1}_to_{2}".format(inp_path, temp_round_tstart, temp_round_tstart + ROUND_SECS )
+        temp_inp_fp = open(temp_inp_fname)
 
-    for line in inp_fp:
+    sys.stderr.write("Working on analyzing dropouts in {0}\n".format(temp_inp_fname) )    
+
+    for line in temp_inp_fp:
         parts = line.strip().split()
 
         if len(parts) != 2:
@@ -67,22 +71,20 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
             
             if addr in ip_to_metadata:
                 if ip_to_metadata[addr]["asn"] == reqd_asn:
+
+                    # if addr in dropout_addrs:
+                    #     sys.stderr.write("addr already in dropouts: {0}\n".format(addr) )
+                    
                     dropout_addrs.add(addr)
+                    # sys.stderr.write("{0}\n".format(addr) )
                 
 
-
-inp_fname_parts = inp_fname.strip().split('_')
-if is_compressed == 1:
-    round_end_time_epoch = int(inp_fname_parts[-1][:-3])
-else:
-    round_end_time_epoch = int(inp_fname_parts[-1])
-round_start_time_epoch = round_end_time_epoch - ROUND_SECS
-
-this_h_dt = datetime.datetime.utcfromtimestamp(round_start_time_epoch)
+this_h_dt = datetime.datetime.utcfromtimestamp(d_round_epoch)
 this_h_dt_str = this_h_dt.strftime("%Y_%m_%d_%H_%M")
 
+d_round_endtime_epoch = d_round_epoch + ROUND_SECS
 
-op_dir = '{0}_{1}_to_{2}'.format(this_h_dt_str, round_start_time_epoch, round_end_time_epoch)
+op_dir = '{0}_{1}_to_{2}'.format(this_h_dt_str, d_round_epoch, d_round_endtime_epoch)
 mkdir_cmd = 'mkdir -p ./data/{0}'.format(op_dir)
 args = shlex.split(mkdir_cmd)
 try:
@@ -98,9 +100,9 @@ for addr in dropout_addrs:
     
 
 round_to_recoveries = defaultdict(set)
-# Next, go through each round from round_tstart+1 to round_tend. See how many of the dropped out addresses recovered in each round.
-this_round_tstart = round_tstart + ROUND_SECS
-while (this_round_tstart <= round_tend):
+# Next, go through each round from d_round_epoch+1 to u_round_epoch. See how many of the dropped out addresses recovered in each round.
+this_round_tstart = d_round_epoch + ROUND_SECS
+while (this_round_tstart <= u_round_epoch):
 
     if is_compressed == 1:
         temp_inp_fname = "{0}/{1}_to_{2}.gz".format(inp_path, this_round_tstart, this_round_tstart + ROUND_SECS)
