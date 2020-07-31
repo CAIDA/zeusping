@@ -11,6 +11,7 @@ import jgraph
 import os
 import shlex, subprocess
 import time
+import datetime
 
 is_talk = 0
 
@@ -63,12 +64,62 @@ class TimeSeries_Scatter(jgraph.Scatter_Jgraph):
     def set_to_plot_var(self, to_plot_var):
         self.to_plot_var = to_plot_var
         
-    
+
+    def get_scatter_metadata(self):
+
+        scatter_fname = self.scatter_fnames_list
+        scatter_fp = open(scatter_fname, 'r')
+
+        self.y_min = 1000000
+        self.y_max = 0
+        
+        for line in scatter_fp:
+            parts = line.strip().split()
+            tstamp = int(parts[0].strip() )
+
+            x_val = (tstamp - 1565559600)/float(600)
+
+            if self.to_plot_var == 'resp':
+                n_r = int(parts[1].strip() )
+                if n_r < self.y_min:
+                    self.y_min = n_r
+                if n_r > self.y_max:
+                    self.y_max = n_r
+
+            elif self.to_plot_var == 'newresp_dropout':
+                n_d = int(parts[3].strip() )
+                n_n = int(parts[2].strip() )
+                larger_val = max(n_d, n_n)
+                smaller_val = min(n_d, n_n)
+                if smaller_val < self.y_min:
+                    self.y_min = smaller_val
+                if larger_val > self.y_max:
+                    self.y_max = larger_val
+
+            elif self.to_plot_var == 'p_d':
+                n_d = int(parts[3].strip() )
+                n_r = int(parts[1].strip() )
+                p_d = float(n_d)/n_r
+                if p_d < self.y_min:
+                    self.y_min = p_d
+                if p_d > self.y_max:
+                    self.y_max = p_d
+                
+
+        if self.to_plot_var == 'resp' or self.to_plot_var == 'newresp_dropout':
+            self.y_max += 100
+            self.y_min -= 100
+            
+        elif self.to_plot_var == 'p_d':
+            self.y_max *= 2
+            self.y_min /= 2
+
+            
     def config_xaxis(self, xaxis_label):
         conf = '\n'
         if (self.xlog):
             conf += 'log\n'
-        conf += 'size 4\n'
+        conf += 'size 10\n'
 
         if (is_talk == 1):
             conf += "gray 0.9\n"
@@ -80,9 +131,17 @@ class TimeSeries_Scatter(jgraph.Scatter_Jgraph):
         conf += 'no_auto_hash_labels\n'
         conf += 'no_auto_hash_marks\n'
 
-        for h_idx in range(14, 575, 24):
+        for h_idx in range(14, 1728, 12): # 12 rounds = 2 hours
+            conf += 'mhash_at {0}\n'.format(h_idx)
+        
+        for h_idx in range(14, 1728, 36): # 36 rounds = 6 hours
             conf += 'hash_at {0}\n'.format(h_idx)
-            conf += 'hash_label at {0} : {1}\n'.format(h_idx, ((h_idx - 14)%144)/6 )
+
+        for h_idx in range(14, 1728, 144): # 72 rounds = 12 hours
+            epoch_t = 1565559600 + h_idx*600
+            dt = datetime.datetime.utcfromtimestamp(epoch_t)
+            # conf += 'hash_label at {0} : {1}\n'.format(h_idx, ((h_idx - 14)%144)/6 ) 
+            conf += 'hash_label at {0} : Aug {1}\n'.format(h_idx, dt.day )
         
         return conf
 
@@ -101,44 +160,49 @@ class TimeSeries_Scatter(jgraph.Scatter_Jgraph):
             # conf += 'label fontsize 13\n'
             # conf += 'hash_labels fontsize 11\n\n'
 
+        # if self.to_plot_var == 'resp':
 
-        if self.to_plot_var == 'resp':
+        #     # conf += 'no_auto_hash_labels\n'
+        #     # conf += 'no_auto_hash_marks\n'
 
-            conf += 'no_auto_hash_labels\n'
-            conf += 'no_auto_hash_marks\n'
+        #     conf += 'min {0} max {1}\n\n'.format(self.y_min, self.y_max)
+            
+        # elif self.to_plot_var == 'newresp_dropout':
 
-            conf += 'hash_at 972000\n'
-            conf += 'hash_label at 972000 : 972K\n'
+        #     # conf += 'no_auto_hash_labels\n'
+        #     # conf += 'no_auto_hash_marks\n'
 
-            conf += 'hash_at 973000\n'
-            conf += 'hash_label at 973000 : 973K\n'
+        #     conf += 'min {0} max {1}\n\n'.format(self.y_min, self.y_max)
 
-            conf += 'hash_at 974000\n'
-            conf += 'hash_label at 974000 : 974K\n'
+        conf += 'min {0} max {1}\n\n'.format(self.y_min, self.y_max)
 
-            conf += 'hash_at 975000\n'
-            conf += 'hash_label at 975000 : 975K\n'
+        if self.to_plot_var == 'resp' or self.to_plot_var == 'newresp_dropout':
+            conf += 'hash_at {0}\n'.format(self.y_min)
+            conf += 'hash_label at {0} : {1}\n'.format(self.y_min, self.y_min)
 
-            conf += 'hash_at 976000\n'
-            conf += 'hash_label at 976000 : 976K\n'
+            conf += 'hash_at {0}\n'.format(self.y_max)
+            conf += 'hash_label at {0} : {1}\n'.format(self.y_max, self.y_max)
 
-            conf += 'hash_at 977000\n'
-            conf += 'hash_label at 977000 : 977K\n'
+        elif self.to_plot_var == 'p_d':
+            conf += 'hash_at {0}\n'.format(self.y_min)
+            conf += 'hash_label at {0} : {1:.4f}\n'.format(self.y_min, self.y_min)
 
-        elif self.to_plot_var == 'newresp_dropout':
-            pass
+            conf += 'hash_at {0}\n'.format(self.y_max)
+            conf += 'hash_label at {0} : {1:.4f}\n'.format(self.y_max, self.y_max)
+
+        
 
         return conf
 
 
-    def draw_cdt_gridlines(self):
-        # cdt_idx = 5.0 # At 5 AM UTC, it's midnight CDT (which is the same as EST)
-        for cdt_idx in range(14 + 5*6, 575, 24*6):
+    def draw_mdt_gridlines(self):
+        # cdt_idx = 6.0 # At 6 AM UTC, it's midnight MDT
+        for cdt_idx in range(14 + 6*6, 1728, 24*6):
             # Add a grid line for CDT
             if is_talk == 1:
                 self.fp.write('newcurve marktype none linetype dashed color gray 0.9 pts {0} 0.0005 {0} 0.05\n'.format(cdt_idx) )
             else:
-                self.fp.write('newcurve marktype none linetype dashed color 0 0 0 pts {0} 800 {0} 2200\n'.format(cdt_idx) )                
+                self.fp.write('newcurve marktype none linetype dashed color 0 0 0 pts {0} {1} {0} {2}\n'.format(cdt_idx, self.y_min, self.y_max) )                
             # cdt_idx += 24
         
     
@@ -153,16 +217,14 @@ class TimeSeries_Scatter(jgraph.Scatter_Jgraph):
 
             x_val = (tstamp - 1565559600)/float(600)
 
-
-
             if self.to_plot_var == 'resp':
                 n_r = int(parts[1].strip() )
                 self.fp.write("newcurve marktype diamond color 0 0 0.8 linetype none pts {0} {1}\n".format(x_val, n_r) )
 
             elif self.to_plot_var == 'newresp_dropout':
-                n_d = int(parts[2].strip() )
+                n_d = int(parts[3].strip() )
                 self.fp.write("newcurve marktype x color 0.8 0 0 linetype none pts {0} {1}\n".format(x_val, n_d) )
-                n_n = int(parts[3].strip() )
+                n_n = int(parts[2].strip() )
                 self.fp.write("newcurve marktype cross color 0 0.8 0 linetype none pts {0} {1}\n".format(x_val, n_n) )
 
             elif self.to_plot_var == 'p_d':
@@ -170,6 +232,7 @@ class TimeSeries_Scatter(jgraph.Scatter_Jgraph):
                 n_d = int(parts[2].strip() )
                 p_d = float(n_d)/n_r
                 self.fp.write("newcurve marktype x color 0.8 0 0 linetype none pts {0} {1}\n".format(x_val, p_d) )
+                
 
                 
 def usage(args):
@@ -231,15 +294,17 @@ if __name__=="__main__":
         j.init_jgraph(op_fname, title=title)
 
     j.set_to_plot_var(to_plot_var)
+    # inp_fname is the file containing dropouts, newresp events        
+    j.get_scatter_fnames(inp_fname)    
+    j.get_scatter_metadata()
     
-    if to_plot_var == 'p_d':
-        j.set_ylog()
+    # if to_plot_var == 'p_d':
+    #     j.set_ylog()
 
     j.xaxis(xlabel)
     j.yaxis(ylabel)
-    # inp_fname is the file containing dropouts, newresp events    
-    j.get_scatter_fnames(inp_fname)
-    # j.draw_cdt_gridlines()    
+
+    j.draw_mdt_gridlines()    
     j.plot_scatter()
     j.exec_jgraph()
     bp_path = "ramapad@bluepill.cs.umd.edu:~/public_html/dhcp_paper/atlas_ripe/"
