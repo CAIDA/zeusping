@@ -30,9 +30,12 @@ op_fname = sys.argv[3]
 op_fp = wandio.open('{0}/{1}'.format(op_path, op_fname), 'w')
 octets_op_fp = {}
 
-mkdir_cmd = 'mkdir -p {0}/addrs_by_oct3/'.format(op_path)
-sys.stderr.write("{0}\n".format(mkdir_cmd) )
-os.system(mkdir_cmd)
+oct3_reqd = 0
+
+if oct3_reqd == 1:
+    mkdir_cmd = 'mkdir -p {0}/addrs_by_oct3/'.format(op_path)
+    sys.stderr.write("{0}\n".format(mkdir_cmd) )
+    os.system(mkdir_cmd)
 
 line_ct = 0
 for line in sys.stdin:
@@ -53,18 +56,20 @@ for line in sys.stdin:
             ip_str = int2ip(ip)
             op_fp.write("{0}\n".format(ip_str) )
 
-            octs = ip_str.split('.')
-            # oct1 = octs[0]
-            oct3 = octs[3]            
+            if oct3_reqd == 1:
+                octs = ip_str.split('.')
+                # oct1 = octs[0]
+                oct3 = octs[3]            
 
-            if oct3 not in octets_op_fp:
-                octets_op_fp[oct3] = wandio.open('{0}/addrs_by_oct3/{1}.gz'.format(op_path, oct3), 'w')
+                if oct3 not in octets_op_fp:
+                    octets_op_fp[oct3] = wandio.open('{0}/addrs_by_oct3/{1}.gz'.format(op_path, oct3), 'w')
 
-            octets_op_fp[oct3].write("{0}\n".format(ip_str) )
+                octets_op_fp[oct3].write("{0}\n".format(ip_str) )
                 
 
 # Close all wandio files
 op_fp.close()
 
-for oct3 in octets_op_fp:
-    octets_op_fp[oct3].close()
+if oct3_reqd == 1:
+    for oct3 in octets_op_fp:
+        octets_op_fp[oct3].close()
