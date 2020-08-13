@@ -1,46 +1,89 @@
 
-# TODO: Take in the loc and loc pfx.to.gz as input in some file. Then just write a function that accepts a loc and pfx2as file, returns the addresses we care about. I can then have a single output file.
-
 import sys
 import random
+import os
+import wandio
+import datetime
 
 # loc_to_reqd_asns contains a manual mapping of the ASes that we believe are large residential providers in different areas
-# We obtained "likely residential" ASes by finding the ASes with the most addresses in the area and  then checking which of these are "known residential" using Wikipedia and news.
+# We obtained "likely residential" ASes by finding the ASes with the most addresses in the area and  then checking which of these are "known residential" using Wikipedia and the web in general.
 
-loc_to_reqd_asns = {
-    "CO" : {'7922', '209', '7155'},
-    "VT" : {'7922', '13977'},
-    # "RI" : {'22773', '701', '7029', '7922'},
-    "RI" : {'22773', '701'},    
-    "CA" : {'7922', '7155'},
-    "accra" : {'30986', '37140'},
-    }
+known_residential_asns = ['7922', '209', '7029', '5650', '20115', '7018', '22773', '701', '13977', '33363', '7155']
 
+loc_to_reqd_asns_fname = sys.argv[1]
+op_fname_pref = sys.argv[2]
+num_splits = int(sys.argv[3]) # Number of files into which we should split the addresses
+asn_to_addrs_path = sys.argv[4]
+pfx2as_suf = sys.argv[5]
 
-loc = sys.argv[1]
+mkdir_cmd = 'mkdir -p ./data/{0}'.format(op_fname_pref)
+sys.stderr.write("{0}\n".format(mkdir_cmd) )
+os.system(mkdir_cmd)
 
-reqd_asns = loc_to_reqd_asns[loc]
+st_asn_to_sampling_factor = {} # The sampling factor is an integer (>=1) that decides the probability with which an address from this AS is chosen for probing
 
-for line in sys.stdin:
-    parts = line.strip().split('|')
+op_fps = {}
+for sp in range(num_splits):
+    op_fname = "./data/{0}/{0}_numsp{1}_sp{2}".format(op_fname_pref, num_splits, sp+1) 
+    op_fps[sp] = open(op_fname, 'w')
 
-    if (len(parts) != 2):
-        continue
+loc_to_reqd_asns_fp = open(loc_to_reqd_asns_fname)
+for line in loc_to_reqd_asns_fp:
+
+    # Each line in loc_to_reqd_asns_fp contains the reqd_asns for a state. So we are processing one state at a time.
     
-    addr = parts[0].strip()
-    asn = parts[1].strip()
-
-    # if ( (asn == '7018') or (asn == '22773') or (asn == '20001') ): # SD
-    # if ( (asn == '7922') or (asn == '209') or (asn == '11351') or (asn == '10796') or (asn == '20001') or (asn == '7843') or (asn == '11426') or (asn == '33588') or (asn == '12271') ): # Colorado    
-    # # if ( (asn == '33588') or (asn == '209') or (asn == '10835') ): # Wyoming
-    # # if ( (asn == '7922') or (asn == '701') or (asn == '7018') ): # Philadelphia
-    # # if ( (asn == '7018') or (asn == '22773') or (asn == '3372') or (asn == '3375') ): # Tulsa
-    #     sys.stdout.write("{0}\n".format(addr) )
+    parts = line.strip().split()
     
-    if asn in reqd_asns:
-        sys.stdout.write("{0}\n".format(addr) )
-    
+    state = parts[0].strip()
 
+    if state not in st_asn_to_sampling_factor:
+        st_asn_to_sampling_factor[state] = {}
+    
+    asn_list = parts[1].strip()
+    
+    asns = asn_list.strip().split('-')
+    
+    reqd_asns = set()
+    
+    for asn in asns:
+
+        asns_reqd_splits_parts = asn.strip().split(':')
+        reqd_asns.add(asns_reqd_splits_parts[0])
+        st_asn_to_sampling_factor[state][asns_reqd_splits_parts[0]] = int(asns_reqd_splits_parts[1])
+
+    # print st_asn_to_sampling_factor
         
+    st_fname = "{0}/{1}_addrs/all_{1}_addresses{2}.pfx2as.gz".format(asn_to_addrs_path, state, pfx2as_suf)
+    st_fp = wandio.open(st_fname)
+
+    st_line_ct = 0
     
-    
+    for line in st_fp:
+
+        st_line_ct += 1
+
+        if st_line_ct%100000 == 0:
+            sys.stderr.write("Done with {0} lines at: {1}\n".format(st_line_ct, str(datetime.datetime.now() ) ) )
+        
+        parts = line.strip().split('|')
+
+        if (len(parts) != 2):
+            continue
+
+        addr = parts[0].strip()
+        asn = parts[1].strip()
+
+        if ( (asn in reqd_asns) or (asn in known_residential_asns) ):
+
+            if asn in st_asn_to_sampling_factor[state]:
+                sampling_factor = st_asn_to_sampling_factor[state][asn]
+            else:
+                sampling_factor = 1
+            
+            sample = random.randint(1, sampling_factor)
+            
+            if sample == 1:
+                # Address needs to be sampled. Let's decide which file to write it to based on num_splits
+                file_num = random.randint(1, num_splits)
+
+                op_fps[file_num-1].write("{0}\n".format(addr) )
