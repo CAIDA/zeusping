@@ -1,2 +1,17 @@
 *~
+*.pyc
+*.db
+\#*\#
+*/data*
+*.lprof
+*.jgr
+*.pdf
+*.eps
+*inpfile*
+*DS_Store
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
 */data*
