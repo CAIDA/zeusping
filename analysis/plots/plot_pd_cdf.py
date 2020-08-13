@@ -14,7 +14,7 @@ import time
 
 is_talk = 0
 
-class Pd_PDF(jgraph.PDF_Jgraph):
+class Pd_CDF(jgraph.CDF_Jgraph):
 
     def init_jgraph(self, jgr_fname, title=None):
         self.op_fname = jgr_fname
@@ -221,40 +221,10 @@ class Pd_PDF(jgraph.PDF_Jgraph):
             if (i == len(self.cdfcolors)):
                 i = 0
 
-                
-    def write_pdf_pts(self, fname):
+
+    def write_cdf_pts(self, fname):
         ip_fp = open(fname, "r")
         vals = []
-        tot_n_r = 0
-        tot_n_d = 0
-
-        temp_fp = open('temp', 'w')
-        
-        # First calculate P(D) overall
-        for line in ip_fp:
-
-            parts = line.strip().split()
-            tstamp = int(parts[0].strip() )
-
-            # x_val = (tstamp - 1565559600)/float(600)
-            n_r = int(parts[2].strip() )            
-            tot_n_r += n_r
-            n_d = int(parts[1].strip() )
-            tot_n_d += n_d
-
-            if n_r > 0:
-                temp_fp.write("{0}\n".format(float(n_d)/n_r) )
-            
-
-        initial_estimated_pd = tot_n_d/float(tot_n_r) # Our initial estimate of P(D) is based upon all values, including rounds that may have included major bursts of dropouts.
-        sys.stdout.write("Estimated initial P(D): {0}\n".format(initial_estimated_pd) )
-
-        max_estimated_pd_without_outliers = initial_estimated_pd * 10 # We want to set xmax to be equal to this value. Otherwise, can't see the shape of the distribution at all, since the outliers pull the xaxis-max value all the way to the right. So we will consider any P(D) in a round that exceeds max_estimated_pd_without_outliers as an outlier and ignore it. NOTE: This value of 10 by which we are multiplying is pretty sketchy...
-
-        tot_n_r_without_outliers = 0
-        tot_n_d_without_outliers = 0
-        
-        ip_fp = open(fname, "r")        
         for line in ip_fp:
 
             parts = line.strip().split()
@@ -267,31 +237,22 @@ class Pd_PDF(jgraph.PDF_Jgraph):
             if n_r > 0:
                 p_d = float(n_d)/n_r
 
-            if p_d > max_estimated_pd_without_outliers:
-                continue
+                # NOTE: If I have very tiny values (<0.0001), then rounding to 4 significant digits would be bad. Be careful
+                p_d = round(p_d, 5)
 
-            tot_n_r_without_outliers += n_r
-            tot_n_d_without_outliers += n_d
+                vals.append(p_d)
 
-            # NOTE: If I have very tiny values (<0.0001), then rounding to 4 significant digits would be bad. Be careful
-            p_d = round(p_d, 4)
-
-            vals.append(p_d)
-
-        estimated_pd_without_outliers = tot_n_d_without_outliers/float(tot_n_r_without_outliers) # Our estimate of P(D) without outliers will remove outliers as calculated previously.
-        sys.stdout.write("Estimated P(D) without outliers: {0}\n".format(estimated_pd_without_outliers) )
-            
         vals.sort()
 
         n_vals = len(vals)
-        n_curr = 0 # Number of vals == curr value of x (PDF is P(X == x))
+        n_curr = 0 # Number of vals <= curr value of x (CDF is P(X <= x))
 
         print "xlog: {0}".format(self.xlog)
         print "ylog: {0}".format(self.ylog)
 
-        # PDF doesn't need to start off at 0 0
-        # if ( (self.xlog == False) and (self.ylog == False) ):
-        #     self.fp.write("0 0\n")
+        if ( (self.xlog == False) and (self.ylog == False) ):
+            self.fp.write("0 0\n")
+
         prev = vals[0]
 
         prev_n_curr = 0
@@ -299,25 +260,27 @@ class Pd_PDF(jgraph.PDF_Jgraph):
         for val in vals:
             if val != prev:
                 if ( (self.xlog == False) or (prev > 0) ):
-                    self.fp.write("{0:.4f} {1:.4f}\n".format(prev, (n_curr*1.0)/n_vals))
-                    n_curr = 0
+                    self.fp.write("{0:.5f} {1:.5f}\n".format(prev, (prev_n_curr*1.0)/n_vals))
+                    self.fp.write("{0:.5f} {1:.5f}\n".format(prev, (n_curr*1.0)/n_vals))
+                    prev_n_curr = n_curr
 
             prev = val
             n_curr += 1
 
+        self.fp.write("{0:.4f} {1:.4f}\n".format(prev, (prev_n_curr*1.0)/n_vals))
         self.fp.write("{0:.4f} {1:.4f}\n".format(prev, (n_curr*1.0)/n_vals))
 
         ip_fp.close()
 
 
-    def pdf(self, pdf_fname, label=""):
+    def cdf(self, pdf_fname, label=""):
         # Use black color
-        # self.fp.write("newcurve marktype none linethickness 2 linetype solid {0}\n".format(self.pdfcolors[-1]))
+        # self.fp.write("newcurve marktype x linethickness 2 linetype solid {0}\n".format(self.pdfcolors[-1]))
         self.fp.write("newcurve marktype x {0} linetype none\n".format(self.pdfcolors[-1]))
         if (label != ""):
             self.fp.write("label : {0}\n".format(label))
         self.fp.write("pts\n")
-        self.write_pdf_pts(pdf_fname)
+        self.write_cdf_pts(pdf_fname)
 
 
 def usage(args):
@@ -361,9 +324,9 @@ if __name__=="__main__":
             assert False, "unhandled option"
                      
     xlabel = "Probability of Dropout"
-    ylabel = "PDF"
+    ylabel = "CDF"
 
-    j = Pd_PDF()
+    j = Pd_CDF()
     if (title == None):
         j.init_jgraph(op_fname)
     else:
@@ -373,8 +336,8 @@ if __name__=="__main__":
     j.yaxis(ylabel)
     # j.calc_n_vals_per_fname()
     # j.config_legends()
-    j.pdf(inp_fname)
+    j.cdf(inp_fname)
     j.exec_jgraph()
-    bp_path = "ramapad@bluepill.cs.umd.edu:~/public_html/zeusping/prelim/"
+    bp_path = "ramapad@bluepill.cs.umd.edu:~/public_html/zeusping/prelim/"    
     j.scp_to_bp(bp_path)
     # j.cleanup_fnames(dst_fnames)

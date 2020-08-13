@@ -637,6 +637,7 @@ class CDF_Jgraph(Jgraph):
             self.n_vals.append(n_vals)
             ip_fp.close()
 
+            
     def write_cdf_pts(self, fname):
         ip_fp = open(fname, "r")
         vals = []
