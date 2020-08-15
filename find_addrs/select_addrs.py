@@ -22,6 +22,11 @@ os.system(mkdir_cmd)
 
 st_asn_to_sampling_factor = {} # The sampling factor is an integer (>=1) that decides the probability with which an address from this AS is chosen for probing
 
+blacklist = set()
+blacklist_fp = open('blacklist', 'r')
+for line in blacklist_fp:
+    blacklist.add(line[:-1])
+
 op_fps = {}
 for sp in range(num_splits):
     op_fname = "./data/{0}/{0}_numsp{1}_sp{2}".format(op_fname_pref, num_splits, sp+1) 
@@ -71,6 +76,10 @@ for line in loc_to_reqd_asns_fp:
             continue
 
         addr = parts[0].strip()
+
+        if addr in blacklist:
+            continue
+        
         asn = parts[1].strip()
 
         if ( (asn in reqd_asns) or (asn in known_residential_asns) ):
