@@ -33,26 +33,7 @@ elif addr_file == 'iran_addrs':
         'nvir1' : 'awsnvir1',
     }
 
-# We will assume that the address file has already been sorted
-# addr_file_sorted = '{0}_{1}'.format(addr_file, vp)
-
-# Python2 with os.system which is deprecated
-# sort_cmd = "sort -R {0} > {1}".format(addr_file, addr_file_sorted)
-# sys.stderr.write("{0}\n".format(sort_cmd) )
-# os.system(sort_cmd)
-
-# The following will only work in Python3
-# sort_cmd = "sort -R {0}".format(addr_file)
-# args = shlex.split(sort_cmd)
-# print(args)
-# with open(addr_file_sorted, "w") as outfile:
-#     try:
-#         subprocess.run(args, stdout=outfile)
-#     except:
-#         sys.stderr.write("Sort command failed; exiting\n")
-#         sys.exit(1)
-        
-
+    
 curr_time = int(time.time())
 # print(curr_time)
 multiple_of_ten = int(curr_time/600)
@@ -60,7 +41,7 @@ multiple_of_ten = int(curr_time/600)
 next_multiple = multiple_of_ten*600 + 600
 # print(next_multiple)
 
-time_to_sleep = next_multiple - curr_time - 2 # Because erosprober typically takes a couple of seconds to launch
+time_to_sleep = next_multiple - curr_time - 4 # Because erosprober typically takes a few seconds to launch
 # print time_to_sleep
 sys.stderr.write("Going to sleep for {0} seconds until multiple of 10\n".format(time_to_sleep) )
 time.sleep(time_to_sleep)
