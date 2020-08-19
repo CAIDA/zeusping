@@ -24,6 +24,12 @@ if addr_file == 'CO_VT_RI':
             'dallas1' : 'lind1',
             'newark1' : 'linn1',
         }
+    elif plat == 'do':
+        vp_to_oppref = {
+            'nyc1' : 'don1',
+            'sf1' : 'dos1',
+            'toronto1' : 'dot1',
+        }
         
 elif addr_file == 'iran_addrs':
     vp_to_oppref = {
@@ -33,6 +39,19 @@ elif addr_file == 'iran_addrs':
         'nvir1' : 'awsnvir1',
     }
 
+elif addr_file == 'FL':
+    if plat == 'linode':
+        vp_to_oppref = {
+            'fremont2' : 'linf2',
+            'dallas2' : 'lind2',
+            'newark2' : 'linn2',
+        }
+    
+
+# TODO: If we do mkdir from here, the dir belongs to root. swiftsync (which is run as ramapad) does not work. Figure this out later. Perhaps execute chown on the directory and give it to ramapad or something
+# mkdir_cmd = 'mkdir -p ./op_{0}/'.format(addr_file)
+# sys.stderr.write("{0}\n".format(mkdir_cmd) )
+# os.system(mkdir_cmd)
     
 curr_time = int(time.time())
 # print(curr_time)
@@ -50,7 +69,7 @@ time.sleep(time_to_sleep)
 
 if plat == 'aws':
     scamper_cmd = "sudo /home/ubuntu/scamper_2019/bin/sc_erosprober -U scamper_socket -a {0} -o /home/ubuntu/zeusping/for_testing/op_{1}/{2} -I600 -R600 -c 'ping -c 1'".format(addr_file, addr_file, vp_to_oppref[vp])
-elif plat == 'linode':
+elif ( (plat == 'linode') or (plat == 'do') ):
     scamper_cmd = "sudo /home/ramapad/scamper_2019/bin/sc_erosprober -U scamper_socket -a {0} -o /home/ramapad/zeusping/for_testing/op_{1}/{2} -I600 -R600 -c 'ping -c 1'".format(addr_file, addr_file, vp_to_oppref[vp])
 sys.stderr.write("{0}\n".format(scamper_cmd) )
 
