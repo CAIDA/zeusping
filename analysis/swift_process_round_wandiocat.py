@@ -4,6 +4,7 @@ import sys
 import glob
 import shlex
 import subprocess32
+import subprocess
 import os
 import datetime
 import json
@@ -29,20 +30,41 @@ def update_addr_to_resps(fname, addr_to_resps):
     wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
     print wandiocat_cmd
     args = shlex.split(wandiocat_cmd)
+
     try:
-        ping_lines = subprocess32.check_output(args)
-    except subprocess32.CalledProcessError:
+        proc = subprocess.Popen(args, stdout=subprocess.PIPE, bufsize=-1)
+    except:
         sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
         sys.exit(1)
+        
+    # try:
+    #     ping_lines = subprocess32.check_output(args)
+    # except subprocess32.CalledProcessError:
+    #     sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
+    #     sys.exit(1)
 
-    if ping_lines == None: # TODO: Test this on some file
-        return
+    # if ping_lines == None: # TODO: Test this on some file
+    #     return
     
     line_ct = 0
-    for line in ping_lines.split('\n'):
+
+
+    # for line in ping_lines.split('\n'):    
+    for line in proc.stdout:
+    # with proc.stdout:
+    #     for line in iter(p.stdout.readline):
+    
+    # while True:
+        
+
 
         # print line
         # sys.exit(1)
+
+        # line = proc.stdout.readline()
+
+        if not line:
+            break
 
         line_ct += 1
 
@@ -107,6 +129,10 @@ this_cwd = os.getcwd()
 
 # Find the hour edge of this required round
 round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
+
+# TODO: Replace with wandio.swift.list
+elems = wandio.swift.list('zeusping-warts', )
+
 swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
 # print swift_list_cmd
 args = shlex.split(swift_list_cmd)
@@ -141,7 +167,7 @@ if (num_pot_files > 0):
 
             update_addr_to_resps(fname, addr_to_resps)
 
-            op_log_fp.write("Done reading {0}\n".format(fname) )
+            op_log_fp.write("Done reading {0} at: {1}\n".format(fname, str(datetime.datetime.now() ) ) )
 
 
 # If there is anything in addr_to_resps, let's write it.
