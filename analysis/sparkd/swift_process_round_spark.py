@@ -14,24 +14,24 @@ conf = SparkConf().setAppName('process_zp_round')
 sc = SparkContext(conf=conf)
 
 def update_addr_to_resps(fname):
-    # wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
-    # print wandiocat_cmd
-    # args = shlex.split(wandiocat_cmd)
+    wandiocat_cmd = '../swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
+    print wandiocat_cmd
+    args = shlex.split(wandiocat_cmd)
 
-    # try:
-    #     proc = subprocess.Popen(args, stdout=subprocess.PIPE, bufsize=-1)
-    # except:
-    #     sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
-    #     sys.exit(1)
+    try:
+        proc = subprocess.Popen(args, stdout=subprocess.PIPE, bufsize=-1)
+    except:
+        sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
+        sys.exit(1)
         
     line_ct = 0
 
     addr_to_resps = {}
 
-    ip_fp = open(fname)
-    for line in ip_fp:
+    # ip_fp = open(fname)
+    # for line in ip_fp:
     
-    # for line in proc.stdout:
+    for line in proc.stdout:
         line_ct += 1
 
         try:
@@ -76,39 +76,39 @@ def update_addr_to_resps(fname):
         
 # I need to populate the list of files that Spark will operatre upon
 
-# campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
+campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
 
-# round_tstart = int(sys.argv[2])
-# round_tend = round_tstart + 600
-# reqd_round_num = int(round_tstart)/600
+round_tstart = int(sys.argv[2])
+round_tend = round_tstart + 600
+reqd_round_num = int(round_tstart)/600
 
 # processed_op_dir = '/scratch/zeusping/data/spark_processed_op_{0}'.format(campaign)
 
-# # Find the hour edge of this required round
-# round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
-# swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
-# # print swift_list_cmd
-# args = shlex.split(swift_list_cmd)
-# try:
-#     potential_files = subprocess32.check_output(args)
-# except subprocess32.CalledProcessError:
-#     sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
-#     sys.exit(1)
+# Find the hour edge of this required round
+round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
+swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
+# print swift_list_cmd
+args = shlex.split(swift_list_cmd)
+try:
+    potential_files = subprocess32.check_output(args)
+except subprocess32.CalledProcessError:
+    sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
+    sys.exit(1)
 
-# list_of_files = []
-# for fname in potential_files.strip().split('\n'):
-#     parts = fname.strip().split('.warts.gz')
-#     # print parts
-#     file_ctime = parts[0][-10:]
+list_of_files = []
+for fname in potential_files.strip().split('\n'):
+    parts = fname.strip().split('.warts.gz')
+    # print parts
+    file_ctime = parts[0][-10:]
 
-#     round_num = int(file_ctime)/600
+    round_num = int(file_ctime)/600
 
-#     if round_num == reqd_round_num:
-#         # We found a warts file that belongs to this round and needs to be processed
-#         list_of_files.append(fname)
+    if round_num == reqd_round_num:
+        # We found a warts file that belongs to this round and needs to be processed
+        list_of_files.append(fname)
 
 
-list_of_files = ['temp1', 'temp2', 'temp3', 'temp4']
+# list_of_files = ['temp1', 'temp2', 'temp3', 'temp4']
 parallelized_rdd = sc.parallelize(list_of_files)
 
 raw_results = parallelized_rdd.flatMap(update_addr_to_resps)
