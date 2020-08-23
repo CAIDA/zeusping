@@ -8,6 +8,7 @@ import subprocess
 import os
 import datetime
 import json
+from collections import defaultdict
 
 
 def setup_stuff():
@@ -49,7 +50,8 @@ def update_addr_to_resps(fname, addr_to_resps):
     line_ct = 0
 
 
-    # for line in ping_lines.split('\n'):    
+    # ping_lines = proc.communicate()[0]
+    # for line in ping_lines.split('\n'):
     for line in proc.stdout:
     # with proc.stdout:
     #     for line in iter(p.stdout.readline):
@@ -63,8 +65,8 @@ def update_addr_to_resps(fname, addr_to_resps):
 
         # line = proc.stdout.readline()
 
-        if not line:
-            break
+        # if not line:
+        #     break
 
         line_ct += 1
 
@@ -130,8 +132,8 @@ this_cwd = os.getcwd()
 # Find the hour edge of this required round
 round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
 
-# TODO: Replace with wandio.swift.list
-elems = wandio.swift.list('zeusping-warts', )
+# TODO: Replace swift_list_cmd with wandio.swift.list
+# elems = wandio.swift.list('zeusping-warts', )
 
 swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
 # print swift_list_cmd
@@ -144,7 +146,8 @@ except subprocess32.CalledProcessError:
 
 num_pot_files = len(potential_files)
 is_setup_done = 0 # By default, we wouldn't create directories or output files; not unless there are actually warts files to process for this round. This flag keeps track of whether we've "setup" (which we would only have done had we encountered useful warts files).
-addr_to_resps = {}
+# addr_to_resps = {}
+addr_to_resps = defaultdict(lambda : [0, 0, 0, 0, 0])
 
 if (num_pot_files > 0):
 
@@ -180,35 +183,3 @@ if len(addr_to_resps) > 0:
         dst_ct += 1
         this_d = addr_to_resps[dst]
         ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dst, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
-    
-    
-    #     sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend, path_suf)
-    #     sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
-    #     sys.stderr.write("{0}\n".format(sc_cmd) )
-
-    #     # NOTE: It was tricky to write the subprocess32 equivalent for the sc_cmd due to the presence of the pipes. I was also not sure what size the buffer for the pipe would be. So I just ended up using os.system() instead.
-    #     # args = shlex.split(sc_cmd)
-    #     # print args
-    #     # try:
-    #     #     subprocess32.check_call(args)
-    #     # except subprocess32.CalledProcessError:
-    #     #     sys.stderr.write("sc_cmd failed for {0}; exiting\n".format(sc_cmd) )
-    #     #     sys.exit(1)
-
-    #     os.system(sc_cmd)
-
-    #     op_log_fp.write("\nFinished sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
-
-    #     # remove the temporary files
-    #     rm_cmd = 'rm -rf {0}/temp_{1}_to_{2}'.format(processed_op_dir, round_tstart, round_tend)
-    #     sys.stderr.write("{0}\n".format(rm_cmd) )
-    #     args = shlex.split(rm_cmd)
-    #     try:
-    #         subprocess32.check_call(args)
-    #     except subprocess32.CalledProcessError:
-    #         sys.stderr.write("rm_cmd failed for {0}; exiting\n".format(sc_cmd) )
-    #         sys.exit(1)
-
-    #     sys.stderr.write("{0}\n\n".format(str(datetime.datetime.now() ) ) )
-
-    #     op_log_fp.close()

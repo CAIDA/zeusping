@@ -61,7 +61,7 @@ for this_t in range(start_t, end_t, 600):
 addr_to_dropouts_fname = '{0}/responsive_and_dropout_addrs/addr_to_dropouts'.format(processed_op_dir)
 addr_to_dropouts_fp = open(addr_to_dropouts_fname, 'w')
 for addr in addr_to_resps:
-    addr_to_dropouts_fp.write("{0} {1} {2} {3}\n".format(addr, addr_to_resps[addr], addr_to_newresps[addr], addr_to_dropouts[addr]) )
+    addr_to_dropouts_fp.write("{0} {1} {2} {3}\n".format(addr, addr_to_dropouts[addr], addr_to_resps[addr], addr_to_newresps[addr]) )
 
 # Key thing to note:
 # Responsive addresses is the number of addresses that responded in the *previous* round. So the number of addresses that responded in a given round is #responsive + #newresps - #dropouts. 
