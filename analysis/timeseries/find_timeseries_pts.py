@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# TODO: Be consistent with wandio
+
 import sys
 import pyipmeta
 from collections import namedtuple
@@ -7,6 +9,7 @@ import wandio
 import datetime
 
 test = 1
+is_old_CO = 0 # For processing our first experiment on CO
 
 tstart = int(sys.argv[1])
 tend = int(sys.argv[2])
@@ -62,17 +65,42 @@ def write_to_file(key_to_status, fps, isasn = False):
     
 # Let's get ip to as mappings for the IP addresses that we pinged in each U.S. state
 # TODO: Whenever I update loc_to_reqd_asns in select_addrs.py, I need to copy it over here. Perhaps I should have a header file with a common definition...
-loc_to_reqd_asns = {
-    "CO" : {'7922', '209', '7155'},
-    "VT" : {'7922', '13977'},
-    # "RI" : {'22773', '701', '7029', '7922'},
-    "RI" : {'22773', '701'},    
-    "CA" : {'7922', '7155'},
-    "accra" : {'30986', '37140'},
-    }
+# loc_to_reqd_asns = {
+#     "CO" : {'7922', '209', '7155'},
+#     "VT" : {'7922', '13977'},
+#     # "RI" : {'22773', '701', '7029', '7922'},
+#     "RI" : {'22773', '701'},    
+#     "CA" : {'7922', '7155'},
+#     "accra" : {'30986', '37140'},
+#     }
+
+loc_to_reqd_asns = {}
+if is_old_CO == 1:
+    # TODO: Handle old_CO. Use Git to find how I did this back in the day.
+    pass
+else:
+    loc_to_reqd_asns_fname = sys.argv[5]
+    loc_to_reqd_asns_fp = open(loc_to_reqd_asns_fname)
+
+    for line in loc_to_reqd_asns_fp:
+        parts = line.strip().split()
+        loc = parts[0].strip()
+
+        if loc not in loc_to_reqd_asns:
+            loc_to_reqd_asns[loc] = set()
+
+        asn_list = parts[1].strip()
+        asns = asn_list.strip().split('-')
+
+        for asn in asns:
+            asns_reqd_splits_parts = asn.strip().split(':')
+            loc_to_reqd_asns[loc].add(asns_reqd_splits_parts[0])
+
+# print loc_to_reqd_asns
+# sys.exit(1)
 
 ip_to_as = {}
-ip_to_as_file = sys.argv[5] # Each line of this file is a path to an AS file for a U.S. state
+ip_to_as_file = sys.argv[6] # Each line of this file is a path to an AS file for a U.S. state
 
 if (len(sys.argv) > 6):
    if sys.argv[6] == 'append': # If we mess up processing and want to append to files instead of overwriting files
@@ -113,9 +141,10 @@ for line in ip_to_as_fp:
         if asn in loc_to_reqd_asns[usstate]:
             addr = parts[0].strip()
 
-            # These lines were for CO, where Charter used tons of ASNs. We no longer ping Charter
-            # if asn != '7922' and asn != '209':
-            #     asn = '20001'
+            if is_old_CO == 1:
+                # These lines were for the old CO, where Charter used tons of ASNs.
+                if asn != '7922' and asn != '209':
+                    asn = '20001'
 
             ip_to_as[addr] = asn
 
@@ -124,7 +153,8 @@ for line in ip_to_as_fp:
 
 # reqd_ips = set()
 
-inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)
+# inp_ips_file = "{0}/addr_to_dropouts.gz".format(inp_dir)
+inp_ips_file = "{0}/addr_to_dropouts".format(inp_dir)
 if test == 1:
     # test_asn_fname = "{0}/addr_to_dropouts_detailed.gz".format(inp_dir)
     test_asn_fname = "{0}/addr_to_dropouts_detailed".format(inp_dir)    
@@ -134,12 +164,17 @@ if test == 1:
 
 # Let's get ip to county mappings for the IP addresses that we pinged in each U.S. state    
 ip_to_county = {}
-inp_ips_fp = wandio.open(inp_ips_file)
+# inp_ips_fp = wandio.open(inp_ips_file)
+inp_ips_fp = open(inp_ips_file)
 sys.stderr.write("Opening inp_ips_fp at {0}\n".format(str(datetime.datetime.now() ) ) )
 for line in inp_ips_fp:
     parts = line.strip().split()
     ip = parts[0].strip()
-    asn = ip_to_as[ip]
+
+    if ip in ip_to_as:
+        asn = ip_to_as[ip]
+    else:
+        asn = '-1'
 
     # Find county id
     county_id = '-1'
@@ -176,11 +211,18 @@ test_tstart = 1578614400 # Jan 10 00:00:00 UTC 2020
 test_tend = 1578700800 # Jan 11 00:00:00 UTC 2020
 
 for this_t in range(tstart, tend, 600):
-    this_fname = "{0}/{1}_to_{2}.gz".format(inp_dir, this_t, this_t + 600)
+    # this_fname = "{0}/{1}_to_{2}.gz".format(inp_dir, this_t, this_t + 600)
+    if is_old_CO == 1:
+        this_fname = "{0}/{1}_to_{2}/dropout_resp_antidropout_addrs.gz".format(inp_dir, this_t, this_t + 600)
+    else:
+        this_fname = "{0}/{1}_to_{2}".format(inp_dir, this_t, this_t + 600)
     sys.stderr.write("Processing {0} at {1}\n".format(this_fname, str(datetime.datetime.now() ) ) )
 
     try:
-        this_fp = wandio.open(this_fname, "r")
+        if is_old_CO == 1:
+            this_fp = wandio.open(this_fname, "r")
+        else:
+            this_fp = open(this_fname, "r")
     except:
         # Sometimes, we have missing data for some 10-minute rounds. Handle it.
         continue

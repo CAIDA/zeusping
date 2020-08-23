@@ -3,7 +3,7 @@
 import sys
 import _pytimeseries
 import pyipmeta
-import wandio
+# import wandio
 from collections import defaultdict
 import datetime
 
@@ -11,11 +11,15 @@ import datetime
 # ipm = pyipmeta.IpMeta(provider="netacq-edge",
 #                       provider_config="-b /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/2019-08-09.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz")
 
+IS_INPUT_COMPRESSED = 0
 
 # Get idx_to_fqdn for all counties
 idx_to_county = {}
 idx_to_fqdn = {}
-county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
+if IS_INPUT_COMPRESSED == 1:
+    county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
+else:
+    county_idxs_fp = open('gadm.counties.v2.0.processed.polygons.csv')
 for line in county_idxs_fp:
     parts = line.strip().split(',')
     idx = parts[0].strip()
@@ -30,18 +34,30 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
     for this_k in list_of_keys:
 
         if county_asn == True:
-            inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}.gz".format(inp_dir, county_idx, this_k)
+            if IS_INPUT_COMPRESSED == 1:
+                inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}.gz".format(inp_dir, county_idx, this_k)
+            else:
+                inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county_idx, this_k)
         elif 'asns' in mode:
-            # The following is a temporary hack because I did not distinguish between AS209 and the county 209. I have since prepended the AS files with _AS<ASnum> to prevent this ambiguity.            
+            # The following is a temporary hack because I did not distinguish between AS209 and the county 209. I have since prepended the AS files with _AS<ASnum> to prevent this ambiguity.
             # if 'counties' in mode and this_k == '209':
             #     continue
-            inp_fname = "{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, this_k)
+            if IS_INPUT_COMPRESSED == 1:
+                inp_fname = "{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, this_k)
+            else:
+                inp_fname = "{0}/resp_dropout_per_round_AS{1}".format(inp_dir, this_k)
         else:
-            inp_fname = "{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, this_k)
+            if IS_INPUT_COMPRESSED == 1:
+                inp_fname = "{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, this_k)
+            else:
+                inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)
             
         try:
             # TODO: wandio.open
-            inp_fp = wandio.open(inp_fname, "r")
+            if IS_INPUT_COMPRESSED == 1:
+                inp_fp = wandio.open(inp_fname, "r")
+            else:
+                inp_fp = open(inp_fname, "r")
 
         except IOError:
             # sys.stderr.write("{0} could not be opened\n".format(inp_fname) )
@@ -83,34 +99,37 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.dropout_addr_cnt".format(this_k)
-            
-        idx = kp.get_key(key)
+
+        e_key = key.encode('utf-8')
+        idx = kp.get_key(e_key)
         if idx is None:
-            idx = kp.add_key(key)
+            idx = kp.add_key(e_key)
         kp.set(idx, n_d)
 
         if 'county-asn' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.previously_responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
         elif 'counties' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.{0}.previously_responsive_addr_cnt".format(idx_to_fqdn[this_k])
+            key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
-            key = "projects.zeusping.test1.routing.asn.{0}.previously_responsive_addr_cnt".format(this_k)
+            key = "projects.zeusping.test1.routing.asn.{0}.responsive_addr_cnt".format(this_k)
 
-        idx = kp.get_key(key)
+        e_key = key.encode('utf-8')    
+        idx = kp.get_key(e_key)
         if idx is None:
-            idx = kp.add_key(key)
+            idx = kp.add_key(e_key)
         kp.set(idx, n_r)
 
         if 'county-asn' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.newly_responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.antidropout_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
         elif 'counties' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.{0}.newly_responsive_addr_cnt".format(idx_to_fqdn[this_k])
+            key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
-            key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
-        
-        idx = kp.get_key(key)
+            key = "projects.zeusping.test1.routing.asn.{0}.antidropout_addr_cnt".format(this_k)
+
+        e_key = key.encode('utf-8')
+        idx = kp.get_key(e_key)
         if idx is None:
-            idx = kp.add_key(key)
+            idx = kp.add_key(e_key)
         kp.set(idx, n_a)
 
         if 'numpinged' in mode:
@@ -123,13 +142,16 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             elif 'asns' in mode:
                 key = "projects.zeusping.test1.routing.asn.{0}.pinged_addr_cnt".format(this_k)
                 val = asn_to_numpinged[this_k]
-            
-            idx = kp.get_key(key)
+
+            e_key = key.encode('utf-8')
+            idx = kp.get_key(e_key)
             if idx is None:
-                idx = kp.add_key(key)
+                idx = kp.add_key(e_key)
             kp.set(idx, val)
 
-        
+
+
+
 inp_dir = sys.argv[1]
 mode = sys.argv[2]
 
