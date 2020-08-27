@@ -22,7 +22,7 @@ def main(writing_time):
     county_po_url = 'https://entergy.utilisocial.io/datacapable/v1/map/events/EntergyNOLA/county?t={0}'.format(writing_time)
     scrape_helper.scrape_entergy(county_po_url, writing_time, entergyNOLA_county_op_fp)
 
-    zip_po_url = 'https://entergy.utilisocial.io/datacapable/v1/map/events/EntergyLouisiana/zip?t={0}'.format(writing_time)
+    zip_po_url = 'https://entergy.utilisocial.io/datacapable/v1/map/events/EntergyNOLA/zip?t={0}'.format(writing_time)
     scrape_helper.scrape_entergy(zip_po_url, writing_time, entergyNOLA_zip_op_fp)
 
 
