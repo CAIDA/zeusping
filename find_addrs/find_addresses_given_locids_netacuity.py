@@ -12,6 +12,8 @@ import struct
 import wandio
 import os
 
+MUST_COMPRESS = 0
+
 def int2ip(addr):
     return socket.inet_ntoa(struct.pack("!I", addr))
 
@@ -27,7 +29,11 @@ sys.stderr.write("{0}\n".format(mkdir_cmd) )
 os.system(mkdir_cmd)
 
 op_fname = sys.argv[3]
-op_fp = wandio.open('{0}/{1}'.format(op_path, op_fname), 'w')
+if MUST_COMPRESS == 1:
+    op_fp = wandio.open('{0}/{1}'.format(op_path, op_fname), 'w')
+else:
+    op_fp = open('{0}/{1}'.format(op_path, op_fname), 'w')
+    
 octets_op_fp = {}
 
 oct3_reqd = 0
@@ -62,7 +68,10 @@ for line in sys.stdin:
                 oct3 = octs[3]            
 
                 if oct3 not in octets_op_fp:
-                    octets_op_fp[oct3] = wandio.open('{0}/addrs_by_oct3/{1}.gz'.format(op_path, oct3), 'w')
+                    if MUST_COMPRESS == 1:
+                        octets_op_fp[oct3] = wandio.open('{0}/addrs_by_oct3/{1}.gz'.format(op_path, oct3), 'w')
+                    else:
+                        octets_op_fp[oct3] = open('{0}/addrs_by_oct3/{1}'.format(op_path, oct3), 'w')
 
                 octets_op_fp[oct3].write("{0}\n".format(ip_str) )
                 
