@@ -15,6 +15,7 @@ IS_INPUT_COMPRESSED = 0
 
 # Get idx_to_fqdn for all counties
 idx_to_county = {}
+usstate_to_fqdn = {}
 idx_to_fqdn = {}
 if IS_INPUT_COMPRESSED == 1:
     county_idxs_fp = wandio.open('/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz')
@@ -27,6 +28,26 @@ for line in county_idxs_fp:
     county_name = parts[2][1:-1] # Get rid of quotes
     idx_to_county[idx] = county_name
     idx_to_fqdn[idx] = fqdn
+
+    usstate_fqdn_parts = fqdn.strip().split('.')
+    if len(usstate_fqdn_parts) == 4:
+        usstate_fqdn = "{0}.{1}.{2}".format(usstate_fqdn_parts[0], usstate_fqdn_parts[1], usstate_fqdn_parts[2])
+
+        try:
+            if len(parts) == 4:
+                usstate_parts = parts[3].strip().split('.')
+                if len(usstate_parts) >= 2:
+                    usstate = usstate_parts[1]
+                    usstate_to_fqdn[usstate] = usstate_fqdn
+        except:
+            print("Exception follows")
+            print(line)
+            
+
+# for usstate in usstate_to_fqdn:
+#     print (usstate, usstate_to_fqdn[usstate])
+
+# sys.exit(1)
 
     
 def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None'):
@@ -63,6 +84,8 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
             # sys.stderr.write("{0} could not be opened\n".format(inp_fname) )
             continue
 
+        print(inp_fname)
+        
         for line in inp_fp:
             parts = line.strip().split()
             tstamp = int(parts[0].strip() )
@@ -79,7 +102,7 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
             this_d[this_k]["n_a"][tstamp] = n_a            
 
 
-def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None):
+def set_keys_for_this_tstamp(this_d, tstamp, mode, county_idx=None):
     for this_k in this_d:
 
         # We have some missing data at 1566523200. So some keys do not have a corresponding entry
@@ -99,6 +122,10 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.dropout_addr_cnt".format(this_k)
+        elif 'usstates' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(usstate_to_fqdn[this_k])
+        elif 'usstate-asn' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.dropout_addr_cnt".format(usstate_to_fqdn[county_idx], this_k)
 
         e_key = key.encode('utf-8')
         idx = kp.get_key(e_key)
@@ -112,7 +139,11 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.responsive_addr_cnt".format(this_k)
-
+        elif 'usstates' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(usstate_to_fqdn[this_k])
+        elif 'usstate-asn' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.responsive_addr_cnt".format(usstate_to_fqdn[county_idx], this_k)
+            
         e_key = key.encode('utf-8')    
         idx = kp.get_key(e_key)
         if idx is None:
@@ -125,6 +156,10 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(idx_to_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.antidropout_addr_cnt".format(this_k)
+        elif 'usstates' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(usstate_to_fqdn[this_k])
+        elif 'usstate-asn' in mode:
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.antidropout_addr_cnt".format(usstate_to_fqdn[county_idx], this_k)
 
         e_key = key.encode('utf-8')
         idx = kp.get_key(e_key)
@@ -148,8 +183,6 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, county_idx=None
             if idx is None:
                 idx = kp.add_key(e_key)
             kp.set(idx, val)
-
-
 
 
 inp_dir = sys.argv[1]
@@ -185,6 +218,8 @@ kp = ts.new_keypackage(reset=True)
 # print kp
 
 counties = idx_to_county.keys()
+usstates = usstate_to_fqdn.keys()
+# print(usstates)
 
 all_tstamps = set()
 
@@ -257,9 +292,34 @@ if 'counties' in mode:
     county_to_vals = {}
     populate_idx_to_val(county_to_vals, counties)
 
-# TODO: Change the following to include all ASes
-# asns = ['7922', '209', '20001']
-asns = ['7922', '209', '13977', '22773', '701', '7155']
+if 'usstates' in mode:
+    usstate_to_vals = {}
+    populate_idx_to_val(usstate_to_vals, usstates)
+    
+
+# TODO: Look into how to handle ASes here.
+loc_to_reqd_asns = {}
+loc_to_reqd_asns_fname = sys.argv[3]
+loc_to_reqd_asns_fp = open(loc_to_reqd_asns_fname)
+
+for line in loc_to_reqd_asns_fp:
+    parts = line.strip().split()
+    loc = parts[0].strip()
+
+    if loc not in loc_to_reqd_asns:
+        loc_to_reqd_asns[loc] = set()
+
+    asn_list = parts[1].strip()
+    asns = asn_list.strip().split('-')
+
+    for asn in asns:
+        asns_reqd_splits_parts = asn.strip().split(':')
+        loc_to_reqd_asns[loc].add(asns_reqd_splits_parts[0])
+
+asns = set()
+for loc in loc_to_reqd_asns:
+    for asn in loc_to_reqd_asns[loc]:
+        asns.add(asn)
 
 if 'asns' in mode:
     asn_to_vals = {}
@@ -275,16 +335,32 @@ if 'county-asn' in mode:
         populate_idx_to_val(county_asn_to_vals[county_idx], asns, county_asn=True, county_idx=county_idx)
 
 
+if 'usstate-asn' in mode:
+    usstate_asn_to_vals = {}
+    for usstate in loc_to_reqd_asns:
+        if usstate not in usstate_asn_to_vals:
+            usstate_asn_to_vals[usstate] = {}
+
+        populate_idx_to_val(usstate_asn_to_vals[usstate], loc_to_reqd_asns[usstate], county_asn=True, county_idx=usstate)
+
+
 for tstamp in sorted(all_tstamps):
     if 'counties' in mode:
-        set_keys_for_this_tstamp(county_to_vals, counties, tstamp, mode, county_idx=None)
+        set_keys_for_this_tstamp(county_to_vals, tstamp, mode, county_idx=None)
+        
+    if 'usstates' in mode:
+        set_keys_for_this_tstamp(usstate_to_vals, tstamp, mode, county_idx=None)
         
     if 'asns' in mode:
-        set_keys_for_this_tstamp(asn_to_vals, asns, tstamp, mode, county_idx=None)
+        set_keys_for_this_tstamp(asn_to_vals, tstamp, mode, county_idx=None)
 
     if 'county-asn' in mode:
         for county_idx in county_asn_to_vals:
-            set_keys_for_this_tstamp(county_asn_to_vals[county_idx], asns, tstamp, mode, county_idx=county_idx)
+            set_keys_for_this_tstamp(county_asn_to_vals[county_idx], tstamp, mode, county_idx=county_idx)
 
+    if 'usstate-asn' in mode:
+        for usstate in usstate_asn_to_vals:
+            set_keys_for_this_tstamp(usstate_asn_to_vals[usstate], tstamp, mode, county_idx=usstate)
+            
     kp.flush(tstamp)    
             
