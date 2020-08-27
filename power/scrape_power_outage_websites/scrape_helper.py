@@ -76,3 +76,17 @@ def simple_scrape(url_pref, op_fp):
     json.dump(data, op_fp)
 
     op_fp.write("\n")
+
+
+def scrape_entergy(url, writing_time, op_fp):
+    # print url
+    resp = requests.get(url, timeout=TIMEOUT_THRESH)
+
+    # print resp.json()
+    data = resp.json()
+    # data["writing_time"] = writing_time
+    json.dump(data, op_fp)
+    
+    op_fp.write("\n")
+
+
