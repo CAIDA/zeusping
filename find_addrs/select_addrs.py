@@ -23,7 +23,7 @@ os.system(mkdir_cmd)
 st_asn_to_sampling_factor = {} # The sampling factor is an integer (>=1) that decides the probability with which an address from this AS is chosen for probing
 
 blacklist = set()
-blacklist_fp = open('blacklist', 'r')
+blacklist_fp = open('./data/blacklist', 'r')
 for line in blacklist_fp:
     blacklist.add(line[:-1])
 
@@ -32,6 +32,8 @@ for sp in range(num_splits):
     op_fname = "./data/{0}/{0}_numsp{1}_sp{2}".format(op_fname_pref, num_splits, sp+1) 
     op_fps[sp] = open(op_fname, 'w')
 
+done_addrs = set()
+    
 loc_to_reqd_asns_fp = open(loc_to_reqd_asns_fname)
 for line in loc_to_reqd_asns_fp:
 
@@ -77,12 +79,19 @@ for line in loc_to_reqd_asns_fp:
 
         addr = parts[0].strip()
 
+        # NOTE: I thought that addresses would not repeat. Strangely enough, they did, so I had to add extra book-keeping below to ensure that an address that had been added before is not added again.
+        if addr in done_addrs:
+            continue
+
+        done_addrs.add(addr)
+
         if addr in blacklist:
             continue
         
         asn = parts[1].strip()
 
-        if ( (asn in reqd_asns) or (asn in known_residential_asns) ):
+        # if ( (asn in reqd_asns) or (asn in known_residential_asns) ): # Perhaps we will use the latter check for surveys alone...? Not sure if it's necessary to probe 500 available addresses in Comcast in North Dakota... although it may be useful to simply find all residential addresses, no matter how few, simply to sample more ISPs. Think more about it.
+        if ( (asn in reqd_asns) ):
 
             if asn in st_asn_to_sampling_factor[state]:
                 sampling_factor = st_asn_to_sampling_factor[state][asn]
