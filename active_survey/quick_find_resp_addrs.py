@@ -136,20 +136,24 @@ def update_region_asn_to_status(region_asn_to_status, addrs, mode):
 
 if mode == 'zeus':
 
-    addr_filename = sys.argv[1]
-    netacq_date = sys.argv[2]
+    addr_filename = sys.argv[2]
+    netacq_date = sys.argv[3]
 
-    ip_to_as_file = sys.argv[4] # Each line of this file is a path to an AS file for a U.S. state    
-    ip_to_usstate = {}
+    # NOTE TODO: I am replacing the hacky approach below with a slightly less hacky approach but still one that needs to change eventually. Hardcoding the 20200805 pfx2as suffix is particularly bothersome. Hardcoding the states is also bad.
+    # reqd_states = ['LA', 'MS', 'AL', 'AR', 'NH', 'CT', 'MA'] # TODO: Don't hardcode the states
+    reqd_states = ['TX', 'MD', 'DE'] # TODO: Don't hardcode the states
     ip_to_as = {}
+    ip_to_usstate = {}    
+    # ip_to_as_file = sys.argv[4] # Each line of this file is a path to an AS file for a U.S. state    
+    # ip_to_as_fp = open(ip_to_as_file)
+    # for line in ip_to_as_fp:
 
-    ip_to_as_fp = open(ip_to_as_file)
-    for line in ip_to_as_fp:
+    #     parts = line.strip().split()
+    #     usstate = parts[0]
+    #     usstate_ip_to_as_file = parts[1]
 
-        parts = line.strip().split()
-        usstate = parts[0]
-        usstate_ip_to_as_file = parts[1]
-
+    for usstate in reqd_states:
+        usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_20200805.pfx2as.gz'.format(usstate) # TODO: Don't hardcode the pfx2as date
         ip_to_usstate_as_fp = wandio.open(usstate_ip_to_as_file)
         sys.stderr.write("Opening ip_to_usstate_as_fp for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
         line_ct = 0
