@@ -4,8 +4,10 @@ import os
 import json
 import collections
 from operator import *
+import wandio
 
-# For each address: find how many pings were sent and how many were responsive. 
+# For each address: find how many pings were sent and how many were responsive.
+
 
 addr_to_resps = {}
 line_ct = 0
@@ -57,8 +59,11 @@ for line in sys.stdin:
     # is_loss = data['statistics']['loss']
 
     
-    
-ping_aggrs_fp = open(sys.argv[1], 'w')
+
+if 'gz' in sys.argv[1]:
+    ping_aggrs_fp = wandio.open(sys.argv[1], 'w')
+else:
+    ping_aggrs_fp = open(sys.argv[1], 'w')
 
 
 dst_ct = 0
@@ -73,3 +78,4 @@ for dst in addr_to_resps:
     #     sys.exit(1)
 
 
+ping_aggrs_fp.close()
