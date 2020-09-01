@@ -4,6 +4,9 @@
 # NOTE: I've changed the output format of addr_to_dropouts_detailed, so whichever files use it need to be modified appropriately
 # NOTE: Let us not update asn_to_status anymore. Since we are probing many states and the same AS may repeat acorss states, let the Explorer compose aggregate AS statistics. We will stick to updating state-ASN and county-ASN statistics.
 # TODO: Experiment without flush(). See how much our efficiency improves.
+# TODO: Also change find_timeseries_pts_per_ctry.py to reflect these changes
+# TODO: Modularize this code and make it nicer
+# TODO: Have the state name be part of resp_dropout_per_round_{0}.format(county)
 
 import sys
 import pyipmeta
@@ -51,7 +54,7 @@ def write_to_file(this_t, key_to_status, fps, isasn = False):
         n_d = this_d["dropout"]
         
         fps[key].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
-        fps[key].flush()
+        # fps[key].flush()
         
     
 test = 1
@@ -104,7 +107,8 @@ if is_old_CO == 1:
     # TODO: Handle old_CO. Use Git to find how I did this back in the day.
     pass
 else:
-    
+
+    # TODO: Replace this unmodularized code with the populate_usstate_to_reqd_asns function from quick_find_resp_addrs.py
     usstate_to_reqd_asns_fp = open(usstate_to_reqd_asns_fname)
 
     for line in usstate_to_reqd_asns_fp:
@@ -325,7 +329,7 @@ for this_t in range(tstart, tend, 600):
                     usstate_asn_fps[usstate][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, usstate, asn), "a")
 
             usstate_asn_fps[usstate][asn].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
-            usstate_asn_fps[usstate][asn].flush()
+            # usstate_asn_fps[usstate][asn].flush()
 
             if usstate not in usstate_to_status:
                 usstate_to_status[usstate] = {"resp" : 0, "antidropout" : 0, "dropout" : 0}
@@ -359,7 +363,7 @@ for this_t in range(tstart, tend, 600):
                     county_asn_fps[county][asn] = open("{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, county, asn), "a")                    
 
             county_asn_fps[county][asn].write("{0} {1} {2} {3}\n".format(this_t, n_d, n_r, n_n) )
-            county_asn_fps[county][asn].flush()
+            # county_asn_fps[county][asn].flush()
 
             if county not in county_to_status:
                 county_to_status[county] = {"resp" : 0, "antidropout" : 0, "dropout" : 0}
