@@ -16,6 +16,25 @@ mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'z
 #                       provider_config=provider_config_str)
 
 
+def populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns):
+    usstate_to_reqd_asns_fp = open(usstate_to_reqd_asns_fname)
+
+    for line in usstate_to_reqd_asns_fp:
+        parts = line.strip().split()
+        usstate = parts[0].strip()
+
+        if usstate not in usstate_to_reqd_asns:
+            usstate_to_reqd_asns[usstate] = set()
+
+        asn_list = parts[1].strip()
+        asns = asn_list.strip().split('-')
+
+        for asn in asns:
+            asns_reqd_splits_parts = asn.strip().split(':')
+            usstate_to_reqd_asns[usstate].add(asns_reqd_splits_parts[0])
+
+
+
 def get_zeus_addrs(addr_filename, annotated_op_fname):
 
     annotated_op_fp = open(annotated_op_fname, "w")
@@ -138,12 +157,17 @@ if mode == 'zeus':
 
     addr_filename = sys.argv[2]
     netacq_date = sys.argv[3]
-
-    # NOTE TODO: I am replacing the hacky approach below with a slightly less hacky approach but still one that needs to change eventually. Hardcoding the 20200805 pfx2as suffix is particularly bothersome. Hardcoding the states is also bad.
-    # reqd_states = ['LA', 'MS', 'AL', 'AR', 'NH', 'CT', 'MA'] # TODO: Don't hardcode the states
-    reqd_states = ['TX', 'MD', 'DE'] # TODO: Don't hardcode the states
+    usstate_to_reqd_asns_fname = sys.argv[4]
+    
+    # NOTE TODO: Hardcoding the 20200805 pfx2as suffix is particularly bothersome.
+    # reqd_states = ['LA', 'MS', 'AL', 'AR', 'NH', 'CT', 'MA']
+    # reqd_states = ['TX', 'MD', 'DE']
     ip_to_as = {}
-    ip_to_usstate = {}    
+    ip_to_usstate = {}
+
+    usstate_to_reqd_asns = {}
+    populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
+    
     # ip_to_as_file = sys.argv[4] # Each line of this file is a path to an AS file for a U.S. state    
     # ip_to_as_fp = open(ip_to_as_file)
     # for line in ip_to_as_fp:
@@ -152,7 +176,7 @@ if mode == 'zeus':
     #     usstate = parts[0]
     #     usstate_ip_to_as_file = parts[1]
 
-    for usstate in reqd_states:
+    for usstate in usstate_to_reqd_asns:
         usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_20200805.pfx2as.gz'.format(usstate) # TODO: Don't hardcode the pfx2as date
         ip_to_usstate_as_fp = wandio.open(usstate_ip_to_as_file)
         sys.stderr.write("Opening ip_to_usstate_as_fp for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
@@ -170,11 +194,14 @@ if mode == 'zeus':
             if (len(parts) != 2):
                 continue
 
-            addr = parts[0].strip()
+            # addr = parts[0].strip()
             asn = parts[1].strip()
 
-            ip_to_as[addr] = asn
-            ip_to_usstate[addr] = usstate
+            if asn in usstate_to_reqd_asns[usstate]:
+                addr = parts[0].strip()
+                
+                ip_to_as[addr] = asn
+                ip_to_usstate[addr] = usstate
 
         sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
 
