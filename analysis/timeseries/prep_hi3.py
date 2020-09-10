@@ -84,7 +84,7 @@ def populate_idx_to_val(this_d, list_of_keys, county_asn=False, county_idx='None
             # sys.stderr.write("{0} could not be opened\n".format(inp_fname) )
             continue
 
-        print(inp_fname)
+        # print(inp_fname)
         
         for line in inp_fp:
             parts = line.strip().split()
