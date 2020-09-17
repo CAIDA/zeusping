@@ -1,0 +1,56 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.673.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "CA Tuolumne county Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.673.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CA Tuolumne county Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.673.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "CA Tuolumne county Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.673.asn.7065.responsive_addr_cnt
+    )
+  ),
+  "CA Tuolumne county Sonic responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.673.asn.7065.dropout_addr_cnt
+    )
+  ),
+  "CA Tuolumne county Sonic dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.673.asn.7065.antidropout_addr_cnt
+    )
+  ),
+  "CA Tuolumne county Sonic antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.673.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs"
+)

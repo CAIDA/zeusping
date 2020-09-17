@@ -1,0 +1,144 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "CA Milpitas county Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.20001.responsive_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (20001) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.20001.dropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (20001) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.20001.antidropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (20001) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.5650.responsive_addr_cnt
+    )
+  ),
+  "CA Milpitas county Frontier responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.5650.dropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Frontier dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.5650.antidropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Frontier antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.20115.responsive_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (20115) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.20115.dropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (20115) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.20115.antidropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (20115) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.22773.responsive_addr_cnt
+    )
+  ),
+  "CA Milpitas county Cox responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.22773.dropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Cox dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.22773.antidropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Cox antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.11351.responsive_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (11351) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.11351.dropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (11351) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2159.asn.11351.antidropout_addr_cnt
+    )
+  ),
+  "CA Milpitas county Charter (11351) antidropout_addr_cnt"
+)
