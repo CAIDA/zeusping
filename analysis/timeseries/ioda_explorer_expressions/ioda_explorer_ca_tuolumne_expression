@@ -52,5 +52,5 @@ alias(
       active.*.geo.netacuity.NA.US.4416.673.probers.team-1.caida-sdsc.*.up_slash24_cnt
     )
   ),
-  "Up /24s from all ISPs"
+  "Up /24s from all ISPs in Tuolumne county"
 )
