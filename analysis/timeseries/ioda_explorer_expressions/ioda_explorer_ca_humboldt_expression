@@ -1,0 +1,80 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.5650.responsive_addr_cnt
+    )
+  ),
+  "CA Humboldt county Frontier responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.5650.dropout_addr_cnt
+    )
+  ),
+  "CA Humboldt county Frontier dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.5650.antidropout_addr_cnt
+    )
+  ),
+  "CA Humboldt county Frontier antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.22773.responsive_addr_cnt
+    )
+  ),
+  "CA Humboldt county Cox responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.22773.dropout_addr_cnt
+    )
+  ),
+  "CA Humboldt county Cox dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.22773.antidropout_addr_cnt
+    )
+  ),
+  "CA Humboldt county Cox antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.7065.responsive_addr_cnt
+    )
+  ),
+  "CA Humboldt county Sonic responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.7065.dropout_addr_cnt
+    )
+  ),
+  "CA Humboldt county Sonic dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1540.asn.7065.antidropout_addr_cnt
+    )
+  ),
+  "CA Humboldt county Sonic antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.1540.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs in Humboldt county"
+)

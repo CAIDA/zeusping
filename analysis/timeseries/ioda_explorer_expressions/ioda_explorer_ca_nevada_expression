@@ -1,0 +1,56 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1852.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "CA Nevada county Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1852.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CA Nevada county Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1852.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "CA Nevada county Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1852.asn.7065.responsive_addr_cnt
+    )
+  ),
+  "CA Nevada county Sonic (7065) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1852.asn.7065.dropout_addr_cnt
+    )
+  ),
+  "CA Nevada county Sonic (7065) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1852.asn.7065.antidropout_addr_cnt
+    )
+  ),
+  "CA Nevada county Sonic (7065) antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.1852.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs in Nevada county"
+)

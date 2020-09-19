@@ -1,0 +1,32 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2015.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "CA Calaveras county Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2015.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CA Calaveras county Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.2015.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "CA Calaveras county Comcast antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.2015.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs in Calaveras county"
+)
