@@ -158,8 +158,10 @@ if (num_pot_files > 0):
 
         os.chdir(this_cwd)
 
-        # sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend, path_suf)
+        # NOTE: Open resps_per_addr instead of resps_per_addr.gz for temporary testing purposes only
         sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend, path_suf)        
+        # sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend, path_suf)
+
         sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
         sys.stderr.write("{0}\n".format(sc_cmd) )
 
