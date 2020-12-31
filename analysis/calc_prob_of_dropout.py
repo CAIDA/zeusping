@@ -2,6 +2,9 @@
 import sys
 import datetime
 from collections import defaultdict
+import wandio
+
+IS_COMPRESSED = 1
 
 start_t = int(sys.argv[1])
 end_t = int(sys.argv[2])
@@ -21,13 +24,24 @@ resp_dropout_per_round_fp = open(resp_dropout_per_round_fname, 'w') # TODO: Mayb
 for this_t in range(start_t, end_t, 600):
 
     sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
-    ip_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}'.format(processed_op_dir, this_t, this_t + 600)
-    sys.stderr.write("{0} is being processed\n".format(ip_fname) )
+
+    if IS_COMPRESSED == 1:
+        ip_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz'.format(processed_op_dir, this_t, this_t + 600)
+        sys.stderr.write("{0} is being processed\n".format(ip_fname) )
+        
+        try:
+            ip_fp = wandio.open(ip_fname)
+        except:
+            continue
+
+    else:
+        ip_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}'.format(processed_op_dir, this_t, this_t + 600)
+        sys.stderr.write("{0} is being processed\n".format(ip_fname) )
     
-    try:
-        ip_fp = open(ip_fname)
-    except IOError:
-        continue
+        try:
+            ip_fp = open(ip_fname)
+        except IOError:
+            continue
 
     n_r = 0
     n_d = 0
@@ -58,11 +72,17 @@ for this_t in range(start_t, end_t, 600):
 
 
 # Write addr_to_droputs
-addr_to_dropouts_fname = '{0}/responsive_and_dropout_addrs/addr_to_dropouts'.format(processed_op_dir)
-addr_to_dropouts_fp = open(addr_to_dropouts_fname, 'w')
+if IS_COMPRESSED == 1:
+    addr_to_dropouts_fname = '{0}/responsive_and_dropout_addrs/addr_to_dropouts.gz'.format(processed_op_dir)
+    addr_to_dropouts_fp = wandio.open(addr_to_dropouts_fname, 'w')
+else:
+    addr_to_dropouts_fname = '{0}/responsive_and_dropout_addrs/addr_to_dropouts'.format(processed_op_dir)
+    addr_to_dropouts_fp = open(addr_to_dropouts_fname, 'w')
+    
 for addr in addr_to_resps:
     addr_to_dropouts_fp.write("{0} {1} {2} {3}\n".format(addr, addr_to_dropouts[addr], addr_to_resps[addr], addr_to_newresps[addr]) )
-
+addr_to_dropouts_fp.close()
+    
 # Key thing to note:
 # Responsive addresses is the number of addresses that responded in the *previous* round. So the number of addresses that responded in a given round is #responsive + #newresps - #dropouts. 
 # One way the above rule can be broken, is if an address was not pinged at all in a particular round.
