@@ -33,7 +33,11 @@ def update_addr_to_resps(fname, addr_to_resps):
     args = shlex.split(wandiocat_cmd)
 
     try:
-        proc = subprocess.Popen(args, stdout=subprocess.PIPE, bufsize=-1)
+        # If shell != True, then the command can be a sequence
+        # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
+        
+        # If shell == True, then the command needs to be a string and not a sequence
+        proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True)
     except:
         sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
         sys.exit(1)
@@ -87,8 +91,9 @@ def update_addr_to_resps(fname, addr_to_resps):
 
         dst = data['dst']
 
-        if dst not in addr_to_resps:
-            addr_to_resps[dst] = [0, 0, 0, 0, 0]
+        # NOTE: defaultdict should take care of the following... let's see if this gets us savings
+        # if dst not in addr_to_resps:
+        #     addr_to_resps[dst] = [0, 0, 0, 0, 0]
         addr_to_resps[dst][0] += 1 # 0th index is sent packets
 
         # pinged_ts = data['start']['sec']
@@ -124,7 +129,13 @@ round_tstart = int(sys.argv[2])
 round_tend = round_tstart + 600
 reqd_round_num = int(round_tstart)/600
 
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}'.format(campaign)
+# NOTE: We may want to obtain the files for the previous 10-minute round too but *not* the next 10-minute round.
+# Suppose the tstamps in all VP files are exactly at 600s. Then we would only need to process this round num's files. This is because each file will contain the next 600s worth of pings. These are exactly the pings that we needed to have processed.
+# Suppose the tstamps in all VP files are 601s. Then we would need to process 599s worth of pings from all these files, but discard the last second. When we process the *next round*, we should process the last second from this round (otherwise the next round's first second would never get processed).
+# Suppose the tstamps in all VP files are 599s. Then we would have needed to process 599s (600 to 1199s) worth of pings but we would be discarding all of these if we are not processing the previous round. 
+
+# NOTE: Change output dir for each test!
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsizemin1'.format(campaign)
 
 # Find current working directory
 this_cwd = os.getcwd()
@@ -132,9 +143,10 @@ this_cwd = os.getcwd()
 # Find the hour edge of this required round
 round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
 
-# TODO: Replace swift_list_cmd with wandio.swift.list
+# NOTE: Perhaps replace swift_list_cmd with wandio.swift.list? I don't think it'll buy us that much additional efficiency though...
 # elems = wandio.swift.list('zeusping-warts', )
 
+# NOTE: If we are processing the previous round as well, may need to modify the swift_list_cmd to ensure that previous round's files will also be included. If this round is 00:00 but previous round is from the previous day at 23:50, we'll need to modify the swift list command. We'll probably just have to call the swift_list_cmd twice (once for round_tstart_dt.stuff and another for prev_round_tstart_dt.stuff, where prev_round = round - 600)
 swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
 # print swift_list_cmd
 args = shlex.split(swift_list_cmd)
@@ -149,9 +161,9 @@ is_setup_done = 0 # By default, we wouldn't create directories or output files; 
 # addr_to_resps = {}
 addr_to_resps = defaultdict(lambda : [0, 0, 0, 0, 0])
 
+# TODO: Think about whether we would need to read files generated a minute or two before/after current round
 if (num_pot_files > 0):
 
-    path_suf = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))    
     for fname in potential_files.strip().split('\n'):
         # print fname
         parts = fname.strip().split('.warts.gz')
@@ -183,3 +195,5 @@ if len(addr_to_resps) > 0:
         dst_ct += 1
         this_d = addr_to_resps[dst]
         ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dst, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
+
+op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
