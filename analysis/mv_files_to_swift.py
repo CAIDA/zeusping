@@ -17,8 +17,10 @@ round_dirs = glob.glob('{0}/*_to_*'.format(inp_dir) )
 
 for round_dir in round_dirs:
 
-    round_id = round_dir[len(inp_dir):-1]
+    round_id = round_dir[len(inp_dir):]
     print round_id
+
+    # sys.exit(1)
 
     round_tstart = int(round_id.strip().split('_')[0])
     round_tend = round_tstart + 600
