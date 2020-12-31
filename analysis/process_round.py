@@ -12,7 +12,8 @@ reqd_dir = sys.argv[1]
 round_tstart = int(sys.argv[2])
 round_tend = round_tstart + 600
 
-processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_{0}'.format(reqd_dir)
+# processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_{0}'.format(reqd_dir)
+processed_op_dir = '/scratch/zeusping/data/processed_{0}'.format(reqd_dir)
 
 
 def cp_and_gunzip(f, temp_tstart, temp_tend):
@@ -70,7 +71,7 @@ op_log_fp.write("Finished copying files at: {0}\n".format(str(datetime.datetime.
 
 # Time to process all of these files
 op_log_fp.write("\nStarted sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
-sc_cmd = '/nmhomes/ramapad/scamper_2019/bin/sc_warts2json {0}/temp_{1}_to_{2}/*.warts | python parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend)
+sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/*.warts | python parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend)
 sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
 sys.stderr.write("{0}\n".format(sc_cmd) )
 
