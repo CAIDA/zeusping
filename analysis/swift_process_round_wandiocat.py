@@ -9,6 +9,7 @@ import os
 import datetime
 import json
 from collections import defaultdict
+import io
 
 
 def setup_stuff():
@@ -37,7 +38,7 @@ def update_addr_to_resps(fname, addr_to_resps):
         # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
         
         # If shell == True, then the command needs to be a string and not a sequence
-        proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True)
+        proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=32768, shell=True, executable='/bin/bash')
     except:
         sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
         sys.exit(1)
@@ -56,69 +57,70 @@ def update_addr_to_resps(fname, addr_to_resps):
 
     # ping_lines = proc.communicate()[0]
     # for line in ping_lines.split('\n'):
-    for line in proc.stdout:
-    # with proc.stdout:
-    #     for line in iter(p.stdout.readline):
+    # for line in proc.stdout:
+    # for line in io.open(proc.stdout.fileno()):
+    with proc.stdout:
+        for line in iter(proc.stdout.readline, b''):
     
-    # while True:
+            # while True:
         
 
 
-        # print line
-        # sys.exit(1)
+            # print line
+            # sys.exit(1)
 
-        # line = proc.stdout.readline()
+            # line = proc.stdout.readline()
 
-        # if not line:
-        #     break
+            # if not line:
+            #     break
 
-        line_ct += 1
+            line_ct += 1
 
-        try:
-            data = json.loads(line)
-        except ValueError:
-            print line
-            continue
+            # try:
+            #     data = json.loads(line)
+            # except ValueError:
+            #     print line
+            #     continue
 
-        # if 'statistics' not in data:
-        #     print data
+            # # if 'statistics' not in data:
+            # #     print data
 
-        # if 'dst' not in data:
-        #     print data
+            # # if 'dst' not in data:
+            # #     print data
 
-        # if 'start' not in data:
-        #     print data
+            # # if 'start' not in data:
+            # #     print data
 
-        dst = data['dst']
+            # dst = data['dst']
 
-        # NOTE: defaultdict should take care of the following... let's see if this gets us savings
-        # if dst not in addr_to_resps:
-        #     addr_to_resps[dst] = [0, 0, 0, 0, 0]
-        addr_to_resps[dst][0] += 1 # 0th index is sent packets
+            # # NOTE: defaultdict should take care of the following... let's see if this gets us savings
+            # # if dst not in addr_to_resps:
+            # #     addr_to_resps[dst] = [0, 0, 0, 0, 0]
+            # addr_to_resps[dst][0] += 1 # 0th index is sent packets
 
-        # pinged_ts = data['start']['sec']
+            # # pinged_ts = data['start']['sec']
 
-        resps = data['responses']
+            # resps = data['responses']
 
-        if resps: # Apparently this way of checking for elements in a list is much faster than checking len
-            this_resp = resps[0]
-            icmp_type = this_resp["icmp_type"]
-            icmp_code = this_resp["icmp_code"]
+            # if resps: # Apparently this way of checking for elements in a list is much faster than checking len
+            #     this_resp = resps[0]
+            #     icmp_type = this_resp["icmp_type"]
+            #     icmp_code = this_resp["icmp_code"]
 
-            if icmp_type == 0 and icmp_code == 0:
-                # Responded to the ping and response is indicative of working connectivity
-                addr_to_resps[dst][1] += 1 # 1st index is successful ping response
-            elif icmp_type == 3 and icmp_code == 1:
-                # Destination host unreachable
-                addr_to_resps[dst][2] += 1 # 2nd index is Destination host unreachable
-            else:
-                addr_to_resps[dst][3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
+            #     if icmp_type == 0 and icmp_code == 0:
+            #         # Responded to the ping and response is indicative of working connectivity
+            #         addr_to_resps[dst][1] += 1 # 1st index is successful ping response
+            #     elif icmp_type == 3 and icmp_code == 1:
+            #         # Destination host unreachable
+            #         addr_to_resps[dst][2] += 1 # 2nd index is Destination host unreachable
+            #     else:
+            #         addr_to_resps[dst][3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
 
-        else:
+            # else:
 
-            addr_to_resps[dst][4] += 1 # 4th index is lost ping
+            #     addr_to_resps[dst][4] += 1 # 4th index is lost ping
 
-        # is_loss = data['statistics']['loss']
+            # # is_loss = data['statistics']['loss']
 
 
 ############## Main begins here #####################
@@ -135,7 +137,7 @@ reqd_round_num = int(round_tstart)/600
 # Suppose the tstamps in all VP files are 599s. Then we would have needed to process 599s (600 to 1199s) worth of pings but we would be discarding all of these if we are not processing the previous round. 
 
 # NOTE: Change output dir for each test!
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsizemin1'.format(campaign)
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsize32768shellTruebash_iterreadline'.format(campaign)
 
 # Find current working directory
 this_cwd = os.getcwd()
