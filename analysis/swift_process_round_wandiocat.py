@@ -59,13 +59,14 @@ def update_addr_to_resps(fname, addr_to_resps):
     # while True:
     # for line in proc.stdout:
     # for line in io.open(proc.stdout.fileno()):
-    with proc.stdout:
-        for line in iter(proc.stdout.readline, b''):
+    # with proc.stdout:
+    #     for line in iter(proc.stdout.readline, b''):
+    while proc.poll() is None:
     
             # print line
             # sys.exit(1)
 
-            # line = proc.stdout.readline()
+            line = proc.stdout.readline()
 
             # if not line:
             #     break
@@ -117,8 +118,13 @@ def update_addr_to_resps(fname, addr_to_resps):
             #     addr_to_resps[dst][4] += 1 # 4th index is lost ping
 
             # # is_loss = data['statistics']['loss']
+            
+    # proc.wait() # Wait for the subprocess to exit
 
-    proc.wait()
+    remaining_ping_lines = proc.communicate()[0]
+    for line in remaining_ping_lines.splitlines():
+        line_ct += 1
+    
 
 
 ############## Main begins here #####################
@@ -135,7 +141,7 @@ reqd_round_num = int(round_tstart)/600
 # Suppose the tstamps in all VP files are 599s. Then we would have needed to process 599s (600 to 1199s) worth of pings but we would be discarding all of these if we are not processing the previous round. 
 
 # NOTE: Change output dir for each test!
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsizemin1shellTruebash_iterreadline'.format(campaign)
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsizemin1shellTruebash_pollcommunicate'.format(campaign)
 
 # Find current working directory
 this_cwd = os.getcwd()
