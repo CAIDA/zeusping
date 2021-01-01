@@ -38,7 +38,7 @@ def update_addr_to_resps(fname, addr_to_resps):
         # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
         
         # If shell == True, then the command needs to be a string and not a sequence
-        proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=32768, shell=True, executable='/bin/bash')
+        proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
     except:
         sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
         sys.exit(1)
@@ -54,18 +54,14 @@ def update_addr_to_resps(fname, addr_to_resps):
     
     line_ct = 0
 
-
     # ping_lines = proc.communicate()[0]
     # for line in ping_lines.split('\n'):
+    # while True:
     # for line in proc.stdout:
     # for line in io.open(proc.stdout.fileno()):
     with proc.stdout:
         for line in iter(proc.stdout.readline, b''):
     
-            # while True:
-        
-
-
             # print line
             # sys.exit(1)
 
@@ -122,6 +118,8 @@ def update_addr_to_resps(fname, addr_to_resps):
 
             # # is_loss = data['statistics']['loss']
 
+    proc.wait()
+
 
 ############## Main begins here #####################
 
@@ -137,7 +135,7 @@ reqd_round_num = int(round_tstart)/600
 # Suppose the tstamps in all VP files are 599s. Then we would have needed to process 599s (600 to 1199s) worth of pings but we would be discarding all of these if we are not processing the previous round. 
 
 # NOTE: Change output dir for each test!
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsize32768shellTruebash_iterreadline'.format(campaign)
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsizemin1shellTruebash_iterreadline'.format(campaign)
 
 # Find current working directory
 this_cwd = os.getcwd()
