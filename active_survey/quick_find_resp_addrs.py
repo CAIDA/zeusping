@@ -16,6 +16,31 @@ mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'z
 #                       provider_config=provider_config_str)
 
 
+def populate_ip_to_as(ip_to_as_file, ip_to_as):
+    
+    ip_to_as_fp = wandio.open(ip_to_as_file)
+    line_ct = 0
+    
+    for line in ip_to_as_fp:
+
+        line_ct += 1
+
+        if line_ct%1000000 == 0:
+            sys.stderr.write("{0} ip_to_as lines read at {1}\n".format(line_ct, str(datetime.datetime.now() ) ) )
+
+        parts = line.strip().split('|')
+
+        if (len(parts) != 2):
+            continue
+
+        addr = parts[0].strip()
+        asn = parts[1].strip()
+
+        ip_to_as[addr] = asn
+
+    sys.stderr.write("Done reading ip_to_as at {0}\n".format(str(datetime.datetime.now() ) ) )
+    
+    
 def populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns):
     usstate_to_reqd_asns_fp = open(usstate_to_reqd_asns_fname)
 
@@ -53,7 +78,7 @@ def get_zeus_addrs(addr_filename, annotated_op_fname):
         losses = int(parts[5])
 
         if successful_resps > 0:
-            resp_addrs.add(addr) # This address was responsive in the previous round and has the potential to fail
+            resp_addrs.add(addr)
         else:
             unresp_addrs.add(addr)
 
@@ -71,54 +96,6 @@ def get_zeus_addrs(addr_filename, annotated_op_fname):
         annotated_op_fp.write("{0} {1} {2}\n".format(line[:-1], usstate, asn) )            
 
     return resp_addrs, unresp_addrs
-
-
-def get_isi_addrs(all_addrs, ip_to_as):
-
-    resp_addrs = set()
-    line_ct = 0
-
-    NUM_HISTS = 2 # How many historical censuses we will consider to determine if an address was respsonsive
-    
-    for line in sys.stdin:
-
-        line_ct += 1
-
-        if line_ct == 1:
-            continue
-
-        if line_ct%1000000 == 0:
-            sys.stderr.write("{0} isi_hitlist lines read at {1}\n".format(line_ct, str(datetime.datetime.now() ) ) )
-        
-        # if line_ct > 1000:
-        #     sys.exit(1)
-        
-        parts = line.strip().split()
-
-        ip = parts[1].strip()
-
-        hist = parts[2].strip()
-        hist = hist[-1] # NOTE: Hack to make this faster temporarily
-
-        hex_int = int(hist, 16)
-
-        resp = 0
-
-        for i in range(NUM_HISTS):
-            if hex_int & 1 == 1:
-                resp = 1
-
-            hex_int = hex_int >> 1
-
-        # print ip, hist, hex_int, resp
-
-        if resp == 1:
-            resp_addrs.add(ip)
-
-
-    unresp_addrs = all_addrs - resp_addrs
-
-    return resp_addrs, unresp_addrs
         
 
 def update_region_asn_to_status(region_asn_to_status, addrs, mode):
@@ -132,7 +109,7 @@ def update_region_asn_to_status(region_asn_to_status, addrs, mode):
             else:
                 usstate = '-1'
 
-        elif mode == 'isi':
+        elif mode == 'isi' or mode == 'isi-alladdrs':
             # TODO: Hack to just ignore usstate for now
             usstate = 'NA'
 
@@ -210,48 +187,38 @@ if mode == 'zeus':
     resp_addrs, unresp_addrs = get_zeus_addrs(addr_filename, annotated_op_fname)
 
     
-elif mode == 'isi':
+# This is the "alladdrs" approach, where we determine the set of all addresses in an aggregate using Netacuity + pfx2as, instead of using the addresses that had been pinged by ISI    
+elif mode == 'isi-alladdrs':
+
+    all_addrs_ip_to_as_file = sys.argv[2]
+    all_addrs_ip_to_as = {}
+    populate_ip_to_as(all_addrs_ip_to_as_file, all_addrs_ip_to_as)
+
+    # Let's get a set that contains all addresses in Netacuity + pfx2as for a given aggregate that we're exploring
+    # all_addrs = all_addrs_ip_to_as.keys() # NOTE: keys() does not get the values as a set but as a list. But I want to perform set operations. So let's use viewkeys() instead which yields a set-like object.
+    all_addrs = all_addrs_ip_to_as.viewkeys() 
     
-    ip_to_as_file = sys.argv[2]
+    resp_ip_to_as_file = sys.argv[3]
     # ip_to_usstate = {}
-    ip_to_as = {}
+    resp_ip_to_as = {}
+    populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as)
 
-    all_addrs = set() # Set that contains all addresses in Netacuity + pfx2as for a given country that we're exploring
+    resp_addrs = resp_ip_to_as.viewkeys()
 
-    ip_to_as_fp = wandio.open(ip_to_as_file)
-    line_ct = 0
-    for line in ip_to_as_fp:
+    unresp_addrs = all_addrs - resp_addrs
 
-        line_ct += 1
-
-        if line_ct%1000000 == 0:
-            sys.stderr.write("{0} ip_to_as lines read at {1}\n".format(line_ct, str(datetime.datetime.now() ) ) )
-
-        parts = line.strip().split('|')
-
-        if (len(parts) != 2):
-            continue
-
-        addr = parts[0].strip()
-        asn = parts[1].strip()
-
-        ip_to_as[addr] = asn
-
-        all_addrs.add(addr)
-
-    sys.stderr.write("Done reading ip_to_as at {0}\n".format(str(datetime.datetime.now() ) ) )
-
-    resp_addrs, unresp_addrs = get_isi_addrs(all_addrs, ip_to_as)
+    ip_to_as = all_addrs_ip_to_as # update_region_asn_to_status() requires a variable called ip_to_as
     
     
 region_asn_to_status = {"resp" : {}, "unresp" : {}}
 # Maybe this can eventually even have county-level data. For now, I will begin with state-level data.
+# TODO: Handle bug that update_region_asn_to_status requires ip_to_as details
 update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, mode)
 update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, mode)
 
 if mode == 'zeus':
     op_fname = "{0}_regionasn_to_status".format(addr_filename)
-elif mode == 'isi':
+elif mode == 'isi' or mode == 'isi-alladdrs':
     op_fname = "temp"
 op_fp = open(op_fname, "w")
 
