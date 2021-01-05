@@ -59,71 +59,61 @@ def update_addr_to_resps(fname, addr_to_resps):
     # while True:
     # for line in proc.stdout:
     # for line in io.open(proc.stdout.fileno()):
-    # with proc.stdout:
-    #     for line in iter(proc.stdout.readline, b''):
-    while proc.poll() is None:
+    with proc.stdout:
+        for line in iter(proc.stdout.readline, b''):
+    # while proc.poll() is None:
     
             # print line
             # sys.exit(1)
 
-            line = proc.stdout.readline()
+            # line = proc.stdout.readline()
 
             # if not line:
             #     break
 
             line_ct += 1
 
-            # try:
-            #     data = json.loads(line)
-            # except ValueError:
-            #     print line
-            #     continue
+            try:
+                data = json.loads(line)
+            except ValueError:
+                print line
+                continue
 
-            # # if 'statistics' not in data:
-            # #     print data
+            dst = data['dst']
 
-            # # if 'dst' not in data:
-            # #     print data
+            # NOTE: defaultdict should take care of the following... let's see if this gets us savings
+            # if dst not in addr_to_resps:
+            #     addr_to_resps[dst] = [0, 0, 0, 0, 0]
+            addr_to_resps[dst][0] += 1 # 0th index is sent packets
 
-            # # if 'start' not in data:
-            # #     print data
+            # pinged_ts = data['start']['sec']
 
-            # dst = data['dst']
+            resps = data['responses']
 
-            # # NOTE: defaultdict should take care of the following... let's see if this gets us savings
-            # # if dst not in addr_to_resps:
-            # #     addr_to_resps[dst] = [0, 0, 0, 0, 0]
-            # addr_to_resps[dst][0] += 1 # 0th index is sent packets
+            if resps: # Apparently this way of checking for elements in a list is much faster than checking len
+                this_resp = resps[0]
+                icmp_type = this_resp["icmp_type"]
+                icmp_code = this_resp["icmp_code"]
 
-            # # pinged_ts = data['start']['sec']
+                if icmp_type == 0 and icmp_code == 0:
+                    # Responded to the ping and response is indicative of working connectivity
+                    addr_to_resps[dst][1] += 1 # 1st index is successful ping response
+                elif icmp_type == 3 and icmp_code == 1:
+                    # Destination host unreachable
+                    addr_to_resps[dst][2] += 1 # 2nd index is Destination host unreachable
+                else:
+                    addr_to_resps[dst][3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
 
-            # resps = data['responses']
+            else:
 
-            # if resps: # Apparently this way of checking for elements in a list is much faster than checking len
-            #     this_resp = resps[0]
-            #     icmp_type = this_resp["icmp_type"]
-            #     icmp_code = this_resp["icmp_code"]
+                addr_to_resps[dst][4] += 1 # 4th index is lost ping
 
-            #     if icmp_type == 0 and icmp_code == 0:
-            #         # Responded to the ping and response is indicative of working connectivity
-            #         addr_to_resps[dst][1] += 1 # 1st index is successful ping response
-            #     elif icmp_type == 3 and icmp_code == 1:
-            #         # Destination host unreachable
-            #         addr_to_resps[dst][2] += 1 # 2nd index is Destination host unreachable
-            #     else:
-            #         addr_to_resps[dst][3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
-
-            # else:
-
-            #     addr_to_resps[dst][4] += 1 # 4th index is lost ping
-
-            # # is_loss = data['statistics']['loss']
             
-    # proc.wait() # Wait for the subprocess to exit
+    proc.wait() # Wait for the subprocess to exit
 
-    remaining_ping_lines = proc.communicate()[0]
-    for line in remaining_ping_lines.splitlines():
-        line_ct += 1
+    # remaining_ping_lines = proc.communicate()[0]
+    # for line in remaining_ping_lines.splitlines():
+    #     line_ct += 1
     
 
 
@@ -141,7 +131,7 @@ reqd_round_num = int(round_tstart)/600
 # Suppose the tstamps in all VP files are 599s. Then we would have needed to process 599s (600 to 1199s) worth of pings but we would be discarding all of these if we are not processing the previous round. 
 
 # NOTE: Change output dir for each test!
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testPopenBufsizemin1shellTruebash_pollcommunicate'.format(campaign)
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_test'.format(campaign)
 
 # Find current working directory
 this_cwd = os.getcwd()
