@@ -7,7 +7,7 @@ import collections
 from operator import *
 import wandio
 
-
+# @profile
 def update_addr_to_resps(addr_to_resps):
 
     for line in sys.stdin:
@@ -53,7 +53,7 @@ def update_addr_to_resps(addr_to_resps):
 
         # is_loss = data['statistics']['loss']
 
-    
+# @profile    
 def write_addr_to_resps(addr_to_resps):
     if 'gz' in sys.argv[1]:
         ping_aggrs_fp = wandio.open(sys.argv[1], 'w')
