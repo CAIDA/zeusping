@@ -12,7 +12,7 @@ from collections import defaultdict
 import io
 import wandio
 
-
+# @profile
 def setup_stuff():
     mkdir_cmd = 'mkdir -p {0}/{1}_to_{2}/'.format(processed_op_dir, round_tstart, round_tend)
     args = shlex.split(mkdir_cmd)
@@ -27,7 +27,7 @@ def setup_stuff():
 
     return op_log_fp
 
-
+# @profile
 def find_potential_files():
 
     # NOTE: We may want to obtain the files for the previous 10-minute round too but *not* the next 10-minute round.
@@ -53,7 +53,7 @@ def find_potential_files():
 
     return potential_files
 
-        
+# @profile        
 def update_addr_to_resps(fname, addr_to_resps):
 
     wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
@@ -98,7 +98,8 @@ def update_addr_to_resps(fname, addr_to_resps):
             # if not line:
             #     break
 
-            line_ct += 1
+            # Let's not count the lines since we're not doing anything with them
+            # line_ct += 1
 
             try:
                 data = json.loads(line)
@@ -107,11 +108,12 @@ def update_addr_to_resps(fname, addr_to_resps):
                 continue
 
             dst = data['dst']
+            this_addr_to_resps = addr_to_resps[dst]
 
             # NOTE: defaultdict should take care of the following... let's see if this gets us savings
-            if dst not in addr_to_resps:
-                addr_to_resps[dst] = [0, 0, 0, 0, 0]
-            addr_to_resps[dst][0] += 1 # 0th index is sent packets
+            # if dst not in addr_to_resps:
+            #     this_addr_to_resps = [0, 0, 0, 0, 0]
+            this_addr_to_resps[0] += 1 # 0th index is sent packets
 
             # pinged_ts = data['start']['sec']
 
@@ -124,16 +126,16 @@ def update_addr_to_resps(fname, addr_to_resps):
 
                 if icmp_type == 0 and icmp_code == 0:
                     # Responded to the ping and response is indicative of working connectivity
-                    addr_to_resps[dst][1] += 1 # 1st index is successful ping response
+                    this_addr_to_resps[1] += 1 # 1st index is successful ping response
                 elif icmp_type == 3 and icmp_code == 1:
                     # Destination host unreachable
-                    addr_to_resps[dst][2] += 1 # 2nd index is Destination host unreachable
+                    this_addr_to_resps[2] += 1 # 2nd index is Destination host unreachable
                 else:
-                    addr_to_resps[dst][3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
+                    this_addr_to_resps[3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
 
             else:
 
-                addr_to_resps[dst][4] += 1 # 4th index is lost ping
+                this_addr_to_resps[4] += 1 # 4th index is lost ping
 
             
     proc.wait() # Wait for the subprocess to exit
@@ -142,11 +144,13 @@ def update_addr_to_resps(fname, addr_to_resps):
     # for line in remaining_ping_lines.splitlines():
     #     line_ct += 1
     
-
+# @profile
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
     if len(addr_to_resps) > 0:
 
-        ping_aggrs_fp = wandio.open('{0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend), 'w')
+        # ping_aggrs_fp = wandio.open('{0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend), 'w')
+        op_fname = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend)
+        ping_aggrs_fp = open(op_fname, 'w')
         dst_ct = 0
         for dst in addr_to_resps:
 
@@ -156,12 +160,21 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
 
         ping_aggrs_fp.close()
 
+        # Compress the file
+        gzip_cmd = 'gzip {0}'.format(op_fname)
+        # sys.stderr.write("{0}\n".format(gzip_cmd) )
+        args = shlex.split(gzip_cmd)
+        try:
+            subprocess32.check_call(args)
+        except subprocess32.CalledProcessError:
+            sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+            sys.exit(1)
+
     op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
 
-    
+# @profile    
 def main():
     ############## Main begins here #####################
-
 
     reqd_round_num = int(round_tstart)/600
 
