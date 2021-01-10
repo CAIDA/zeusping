@@ -31,6 +31,19 @@ def setup_stuff():
     return op_log_fp
 
 
+def find_potential_files(round_tstart_dt):
+    swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
+    # print swift_list_cmd
+    args = shlex.split(swift_list_cmd)
+    try:
+        potential_files = subprocess32.check_output(args)
+    except subprocess32.CalledProcessError:
+        sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
+        sys.exit(1)
+
+    return potential_files    
+    
+
 def download_and_gunzip(f, temp_tstart, temp_tend, path_suf, warts_fname_suf):
 
     # cd_cmd = 'cd 
@@ -99,95 +112,97 @@ def download_and_gunzip(f, temp_tstart, temp_tend, path_suf, warts_fname_suf):
             sys.exit(1)
 
 
-############## Main begins here #####################
+def main():
+    ############## Main begins here #####################
+    
+    reqd_round_num = int(round_tstart)/600
 
+    # Find the hour edge of this required round
+    round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
+
+    # Find all files that we *may* need to process
+    potential_files = find_potential_files(round_tstart_dt)
+    
+    # Find current working directory
+    this_cwd = os.getcwd()
+
+    num_pot_files = len(potential_files)
+    is_setup_done = 0 # By default, we wouldn't create directories or output files; not unless there are actually warts files to process for this round. This flag keeps track of whether we've "setup" (which we would only have done had we encountered useful warts files).
+
+    if (num_pot_files > 0):
+
+        path_suf = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))    
+        for fname in potential_files.strip().split('\n'):
+            # print fname
+            parts = fname.strip().split('.warts.gz')
+            # print parts
+            file_ctime = parts[0][-10:]
+            # print file_ctime
+
+            round_num = int(file_ctime)/600
+
+            if round_num == reqd_round_num:
+                # We found a warts file that belongs to this round and needs to be processed
+
+                if is_setup_done == 0:
+                    op_log_fp = setup_stuff()
+                    is_setup_done = 1
+
+                warts_fname_suf = fname.strip().split('/')[-1]
+                # print warts_fname_suf
+                download_and_gunzip(fname, round_tstart, round_tend, path_suf, warts_fname_suf)
+
+        print "is_setup_done: {0}".format(is_setup_done)
+        if is_setup_done == 1:
+            op_log_fp.write("Finished copying files at: {0}\n".format(str(datetime.datetime.now() ) ) )
+
+            # Time to process all of these files
+            op_log_fp.write("\nStarted sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
+
+            os.chdir(this_cwd)
+
+            # NOTE: Open resps_per_addr instead of resps_per_addr.gz for temporary testing purposes only
+            # sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend, path_suf)        
+            sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend, path_suf)
+
+            sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
+            sys.stderr.write("{0}\n".format(sc_cmd) )
+
+            # NOTE: It was tricky to write the subprocess32 equivalent for the sc_cmd due to the presence of the pipes. I was also not sure what size the buffer for the pipe would be. So I just ended up using os.system() instead.
+            # args = shlex.split(sc_cmd)
+            # print args
+            # try:
+            #     subprocess32.check_call(args)
+            # except subprocess32.CalledProcessError:
+            #     sys.stderr.write("sc_cmd failed for {0}; exiting\n".format(sc_cmd) )
+            #     sys.exit(1)
+
+            os.system(sc_cmd)
+
+            op_log_fp.write("\nFinished sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
+
+            # remove the temporary files
+            rm_cmd = 'rm -rf {0}/temp_{1}_to_{2}'.format(processed_op_dir, round_tstart, round_tend)
+            sys.stderr.write("{0}\n".format(rm_cmd) )
+            args = shlex.split(rm_cmd)
+            try:
+                subprocess32.check_call(args)
+            except subprocess32.CalledProcessError:
+                sys.stderr.write("rm_cmd failed for {0}; exiting\n".format(sc_cmd) )
+                sys.exit(1)
+
+            sys.stderr.write("{0}\n\n".format(str(datetime.datetime.now() ) ) )
+
+            op_log_fp.close()
+
+            
+############## Read command line args and call main() #####################
 campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
 
 round_tstart = int(sys.argv[2])
 round_tend = round_tstart + 600
-reqd_round_num = int(round_tstart)/600
 
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}'.format(campaign)
+# processed_op_dir = '/scratch/zeusping/data/processed_op_{0}'.format(campaign)
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple'.format(campaign)
 
-# Find current working directory
-this_cwd = os.getcwd()
-
-# Find the hour edge of this required round
-round_tstart_dt = datetime.datetime.utcfromtimestamp(round_tstart)
-swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
-# print swift_list_cmd
-args = shlex.split(swift_list_cmd)
-try:
-    potential_files = subprocess32.check_output(args)
-except subprocess32.CalledProcessError:
-    sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
-    sys.exit(1)
-
-num_pot_files = len(potential_files)
-is_setup_done = 0 # By default, we wouldn't create directories or output files; not unless there are actually warts files to process for this round. This flag keeps track of whether we've "setup" (which we would only have done had we encountered useful warts files).
-
-if (num_pot_files > 0):
-
-    path_suf = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))    
-    for fname in potential_files.strip().split('\n'):
-        # print fname
-        parts = fname.strip().split('.warts.gz')
-        # print parts
-        file_ctime = parts[0][-10:]
-        # print file_ctime
-
-        round_num = int(file_ctime)/600
-
-        if round_num == reqd_round_num:
-            # We found a warts file that belongs to this round and needs to be processed
-
-            if is_setup_done == 0:
-                op_log_fp = setup_stuff()
-                is_setup_done = 1
-            
-            warts_fname_suf = fname.strip().split('/')[-1]
-            # print warts_fname_suf
-            download_and_gunzip(fname, round_tstart, round_tend, path_suf, warts_fname_suf)
-
-    print "is_setup_done: {0}".format(is_setup_done)
-    if is_setup_done == 1:
-        op_log_fp.write("Finished copying files at: {0}\n".format(str(datetime.datetime.now() ) ) )
-
-        # Time to process all of these files
-        op_log_fp.write("\nStarted sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
-
-        os.chdir(this_cwd)
-
-        # NOTE: Open resps_per_addr instead of resps_per_addr.gz for temporary testing purposes only
-        sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend, path_suf)        
-        # sc_cmd = 'sc_warts2json {0}/temp_{1}_to_{2}/{3}/*.warts | python ~/zeusping/analysis/parse_eros_resps_per_addr.py {0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend, path_suf)
-
-        sys.stderr.write("\n\n{0}\n".format(str(datetime.datetime.now() ) ) )
-        sys.stderr.write("{0}\n".format(sc_cmd) )
-
-        # NOTE: It was tricky to write the subprocess32 equivalent for the sc_cmd due to the presence of the pipes. I was also not sure what size the buffer for the pipe would be. So I just ended up using os.system() instead.
-        # args = shlex.split(sc_cmd)
-        # print args
-        # try:
-        #     subprocess32.check_call(args)
-        # except subprocess32.CalledProcessError:
-        #     sys.stderr.write("sc_cmd failed for {0}; exiting\n".format(sc_cmd) )
-        #     sys.exit(1)
-
-        os.system(sc_cmd)
-
-        op_log_fp.write("\nFinished sc_cmd at: {0}\n".format(str(datetime.datetime.now() ) ) )
-
-        # remove the temporary files
-        rm_cmd = 'rm -rf {0}/temp_{1}_to_{2}'.format(processed_op_dir, round_tstart, round_tend)
-        sys.stderr.write("{0}\n".format(rm_cmd) )
-        args = shlex.split(rm_cmd)
-        try:
-            subprocess32.check_call(args)
-        except subprocess32.CalledProcessError:
-            sys.stderr.write("rm_cmd failed for {0}; exiting\n".format(sc_cmd) )
-            sys.exit(1)
-
-        sys.stderr.write("{0}\n\n".format(str(datetime.datetime.now() ) ) )
-
-        op_log_fp.close()
+main()
