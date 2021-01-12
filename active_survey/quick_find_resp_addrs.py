@@ -15,31 +15,43 @@ mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'z
 # ipm = pyipmeta.IpMeta(provider="netacq-edge",
 #                       provider_config=provider_config_str)
 
-
-def populate_ip_to_as(ip_to_as_file, ip_to_as):
+# NOTE: We should *not* assume that an ip_to_as_file always contains IP2AS mappings for a specific region. For example, if we are loading ip_to_as for ISI responsive addresses, the addresses will geolocate to several different places. However, if we are loading ip_to_as for addresses in CA, then region_name is CA. That is why ip_to_region is an optional argument to this function.
+def populate_ip_to_as(ip_to_as_file, ip_to_as, reqd_asns=None, region_name=None, ip_to_region=None):
     
     ip_to_as_fp = wandio.open(ip_to_as_file)
     line_ct = 0
+
+    sys.stderr.write("Opening ip_to_as for {0} at {1}\n".format(ip_to_as_file, str(datetime.datetime.now() ) ) )
     
     for line in ip_to_as_fp:
 
         line_ct += 1
 
         if line_ct%1000000 == 0:
-            sys.stderr.write("{0} ip_to_as lines read at {1}\n".format(line_ct, str(datetime.datetime.now() ) ) )
+            sys.stderr.write("{0} ip_to_as lines for {1} read at {2}\n".format(line_ct, ip_to_as_file, str(datetime.datetime.now() ) ) )
 
         parts = line.strip().split('|')
 
         if (len(parts) != 2):
             continue
 
-        addr = parts[0].strip()
-        asn = parts[1].strip()
+        if reqd_asns is None:
+            addr = parts[0].strip()
+            asn = parts[1].strip()
+            ip_to_as[addr] = asn
+            if region_name is not None:
+                ip_to_region[addr] = region_name
+        else:
+            asn = parts[1].strip()
 
-        ip_to_as[addr] = asn
+            if asn in reqd_asns:
+                addr = parts[0].strip()
+                ip_to_as[addr] = asn
+                if region_name is not None:
+                    ip_to_region[addr] = region_name
 
-    sys.stderr.write("Done reading ip_to_as at {0}\n".format(str(datetime.datetime.now() ) ) )
-    
+    sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(ip_to_as_file, str(datetime.datetime.now() ) ) )                
+
     
 def populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns):
     usstate_to_reqd_asns_fp = open(usstate_to_reqd_asns_fname)
@@ -57,7 +69,6 @@ def populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_as
         for asn in asns:
             asns_reqd_splits_parts = asn.strip().split(':')
             usstate_to_reqd_asns[usstate].add(asns_reqd_splits_parts[0])
-
 
 
 def get_zeus_addrs(addr_filename, annotated_op_fname):
@@ -98,20 +109,15 @@ def get_zeus_addrs(addr_filename, annotated_op_fname):
     return resp_addrs, unresp_addrs
         
 
-def update_region_asn_to_status(region_asn_to_status, addrs, mode):
+def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as, ip_to_region=None):
 
     for addr in addrs:
         # Find region
 
-        if mode == 'zeus':
-            if addr in ip_to_usstate:
-                usstate = ip_to_usstate[addr]
-            else:
-                usstate = '-1'
-
-        elif mode == 'isi' or mode == 'isi-alladdrs':
-            # TODO: Hack to just ignore usstate for now
-            usstate = 'NA'
+        region = '-1'
+        if ip_to_region is not None:
+            if addr in ip_to_region:
+                region = ip_to_region[addr]
 
         # Find ASN
         if addr in ip_to_as:
@@ -119,70 +125,58 @@ def update_region_asn_to_status(region_asn_to_status, addrs, mode):
         else:
             asn = '-1'
 
-        if usstate not in region_asn_to_status:
-            region_asn_to_status[usstate] = {}
+        if region not in region_asn_to_status:
+            region_asn_to_status[region] = {}
 
-        if asn not in region_asn_to_status[usstate]:
-            region_asn_to_status[usstate][asn] = 0
+        if asn not in region_asn_to_status[region]:
+            region_asn_to_status[region][asn] = 0
 
-        region_asn_to_status[usstate][asn] += 1
+        region_asn_to_status[region][asn] += 1
 
         
+def write_region_asn_to_status(region_asn_to_status, op_fname):
+    op_fp = open(op_fname, "w")
+    for region in region_asn_to_status["resp"]:
+        for asn in region_asn_to_status["resp"][region]:
+
+            tot_resp = region_asn_to_status["resp"][region][asn]
+            
+            tot_unresp = 0
+            if region in region_asn_to_status["unresp"]:
+                if asn in region_asn_to_status["unresp"][region]:
+                    tot_unresp = region_asn_to_status["unresp"][region][asn]
+
+            resp_pct = (tot_resp/float(tot_resp + tot_unresp)) * 100.0
+
+            op_fp.write("{0} {1} {2} {3} {4:.4f}\n".format(region, asn, tot_resp, tot_unresp, resp_pct) )
+
+            
 # NOTE: When running this for ISI's hitlist and/or Zmap scans, we'll need some way to get the ASN of each address
 
 if mode == 'zeus':
 
+    # Find the region and AS of each pinged address. Since we had previously populated this information, we just need to load the correct files
+    # Among pinged addresses, find who responded and who did not (addr_filename)
+    # Find % responsive per AS
+
     addr_filename = sys.argv[2]
     netacq_date = sys.argv[3]
     usstate_to_reqd_asns_fname = sys.argv[4]
+
+    # Load pinged_ip_to_as and pinged_ip_to_usstate using previously crunched files
     
-    # NOTE TODO: Hardcoding the 20200805 pfx2as suffix is particularly bothersome.
-    # reqd_states = ['LA', 'MS', 'AL', 'AR', 'NH', 'CT', 'MA']
-    # reqd_states = ['TX', 'MD', 'DE']
-    ip_to_as = {}
-    ip_to_usstate = {}
+    pinged_ip_to_as = {}
+    pinged_ip_to_usstate = {}
 
     usstate_to_reqd_asns = {}
     populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
-    
-    # ip_to_as_file = sys.argv[4] # Each line of this file is a path to an AS file for a U.S. state    
-    # ip_to_as_fp = open(ip_to_as_file)
-    # for line in ip_to_as_fp:
-
-    #     parts = line.strip().split()
-    #     usstate = parts[0]
-    #     usstate_ip_to_as_file = parts[1]
 
     for usstate in usstate_to_reqd_asns:
         usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_20200805.pfx2as.gz'.format(usstate) # TODO: Don't hardcode the pfx2as date
-        ip_to_usstate_as_fp = wandio.open(usstate_ip_to_as_file)
-        sys.stderr.write("Opening ip_to_usstate_as_fp for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
-        line_ct = 0
-        # for line in sys.stdin:
-        for line in ip_to_usstate_as_fp:
-
-            line_ct += 1
-
-            if line_ct%1000000 == 0:
-                sys.stderr.write("{0} ip_to_as lines for {1} read at {2}\n".format(line_ct, usstate, str(datetime.datetime.now() ) ) )
-
-            parts = line.strip().split('|')
-
-            if (len(parts) != 2):
-                continue
-
-            # addr = parts[0].strip()
-            asn = parts[1].strip()
-
-            if asn in usstate_to_reqd_asns[usstate]:
-                addr = parts[0].strip()
-                
-                ip_to_as[addr] = asn
-                ip_to_usstate[addr] = usstate
-
-        sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
-
-    # Now that ip_to_asn and ip_to_usstate are loaded, let's walk through the address filename and identify which addresses responded and which addresses did not.
+        
+        populate_ip_to_as(usstate_ip_to_as_file, pinged_ip_to_as, usstate_to_reqd_asns[usstate], usstate, pinged_ip_to_usstate)
+        
+    # Now that pinged_ip_to_asn and pinged_ip_to_usstate are loaded, let's walk through the address filename and identify which addresses responded and which addresses did not.
     annotated_op_fname = "{0}_annotated".format(addr_filename)
     resp_addrs, unresp_addrs = get_zeus_addrs(addr_filename, annotated_op_fname)
 
@@ -190,6 +184,10 @@ if mode == 'zeus':
 # This is the "alladdrs" approach, where we determine the set of all addresses in an aggregate using Netacuity + pfx2as, instead of using the addresses that had been pinged by ISI    
 elif mode == 'isi-alladdrs':
 
+    # Find the AS of each potential address that could/should have been pinged in an aggregate, according to Netacuity + pfx2AS
+    # Find the AS of each responsive address for the subset of ASes from the previous step
+    # Find % responsive per AS
+    
     all_addrs_ip_to_as_file = sys.argv[2]
     all_addrs_ip_to_as = {}
     populate_ip_to_as(all_addrs_ip_to_as_file, all_addrs_ip_to_as)
@@ -199,39 +197,33 @@ elif mode == 'isi-alladdrs':
     all_addrs = all_addrs_ip_to_as.viewkeys() 
     
     resp_ip_to_as_file = sys.argv[3]
-    # ip_to_usstate = {}
     resp_ip_to_as = {}
-    populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as)
+    # resp_ip_to_region = {}
+    # Let's populate_ip_to_as *only* for the ASes all_addrs belong to
+    reqd_asns = set(all_addrs_ip_to_as.viewvalues() )
+    populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_asns)
 
     resp_addrs = resp_ip_to_as.viewkeys()
 
     unresp_addrs = all_addrs - resp_addrs
 
-    ip_to_as = all_addrs_ip_to_as # update_region_asn_to_status() requires a variable called ip_to_as
+    # ip_to_as = all_addrs_ip_to_as # update_region_asn_to_status() requires a variable called ip_to_as
     
     
 region_asn_to_status = {"resp" : {}, "unresp" : {}}
 # Maybe this can eventually even have county-level data. For now, I will begin with state-level data.
-# TODO: Handle bug that update_region_asn_to_status requires ip_to_as details
-update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, mode)
-update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, mode)
+if mode == 'zeus':
+    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, pinged_ip_to_as)
+    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, pinged_ip_to_as)
+elif mode == 'isi-alladdrs':
+    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, resp_ip_to_as)
+    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, all_addrs_ip_to_as)
+
 
 if mode == 'zeus':
     op_fname = "{0}_regionasn_to_status".format(addr_filename)
 elif mode == 'isi' or mode == 'isi-alladdrs':
     op_fname = "temp"
-op_fp = open(op_fname, "w")
 
-for usstate in region_asn_to_status["resp"]:
-    for asn in region_asn_to_status["resp"][usstate]:
+write_region_asn_to_status(region_asn_to_status, op_fname)
 
-        tot_resp = region_asn_to_status["resp"][usstate][asn]
-        tot_unresp = 0
-        
-        if usstate in region_asn_to_status["unresp"]:
-            if asn in region_asn_to_status["unresp"][usstate]:
-                tot_unresp = region_asn_to_status["unresp"][usstate][asn]
-
-        resp_pct = (tot_resp/float(tot_resp + tot_unresp)) * 100.0
-
-        op_fp.write("{0} {1} {2} {3} {4:.4f}\n".format(usstate, asn, tot_resp, tot_unresp, resp_pct) )
