@@ -25,7 +25,9 @@ def setup_stuff():
     op_log_fp = open('{0}/{1}_to_{2}/process_round.log'.format(processed_op_dir, round_tstart, round_tend), 'w')
     op_log_fp.write("\nStarted reading files at: {0}\n".format(str(datetime.datetime.now() ) ) )
 
-    return op_log_fp
+    vp_to_vpnum_fp = open('{0}/{1}_to_{2}/vp_to_vpnum.log'.format(processed_op_dir, round_tstart, round_tend), 'w')
+
+    return op_log_fp, vp_to_vpnum_fp
 
 # @profile
 def find_potential_files():
@@ -54,7 +56,7 @@ def find_potential_files():
     return potential_files
 
 # @profile        
-def update_addr_to_resps(fname, addr_to_resps):
+def update_addr_to_resps(fname, addr_to_resps, vpnum):
 
     wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
     print wandiocat_cmd
@@ -80,6 +82,7 @@ def update_addr_to_resps(fname, addr_to_resps):
     #     return
     
     line_ct = 0
+    mask = 1<<vpnum
 
     # ping_lines = proc.communicate()[0]
     # for line in ping_lines.split('\n'):
@@ -108,12 +111,9 @@ def update_addr_to_resps(fname, addr_to_resps):
                 continue
 
             dst = data['dst']
-            this_addr_to_resps = addr_to_resps[dst]
 
-            # NOTE: defaultdict should take care of the following... let's see if this gets us savings
-            # if dst not in addr_to_resps:
-            #     this_addr_to_resps = [0, 0, 0, 0, 0]
-            this_addr_to_resps[0] += 1 # 0th index is sent packets
+            # Don't increment. Bit shift to vp_num position and set bit to 1
+            addr_to_resps[dst][0] |= (mask)  # 0th index is sent packets
 
             # pinged_ts = data['start']['sec']
 
@@ -126,16 +126,16 @@ def update_addr_to_resps(fname, addr_to_resps):
 
                 if icmp_type == 0 and icmp_code == 0:
                     # Responded to the ping and response is indicative of working connectivity
-                    this_addr_to_resps[1] += 1 # 1st index is successful ping response
+                    addr_to_resps[dst][1] |= (mask) # 1st index is successful ping response
                 elif icmp_type == 3 and icmp_code == 1:
                     # Destination host unreachable
-                    this_addr_to_resps[2] += 1 # 2nd index is Destination host unreachable
+                    addr_to_resps[dst][2] |= (mask) # 2nd index is Destination host unreachable
                 else:
-                    this_addr_to_resps[3] += 1 # 3rd index is the rest of icmp stuff. So mostly errors.
+                    addr_to_resps[dst][3] |= (mask) # 3rd index is the rest of icmp stuff. So mostly errors.
 
             else:
 
-                this_addr_to_resps[4] += 1 # 4th index is lost ping
+                addr_to_resps[dst][4] |= (mask) # 4th index is lost ping
 
             
     proc.wait() # Wait for the subprocess to exit
@@ -148,8 +148,7 @@ def update_addr_to_resps(fname, addr_to_resps):
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
     if len(addr_to_resps) > 0:
 
-        # ping_aggrs_fp = wandio.open('{0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, round_tstart, round_tend), 'w')
-        op_fname = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, round_tstart, round_tend)
+        op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
         ping_aggrs_fp = open(op_fname, 'w')
         dst_ct = 0
         for dst in addr_to_resps:
@@ -170,6 +169,10 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
             sys.exit(1)
 
+        # TODO: Upload to Swift
+
+        # TODO: Delete temporary file after verifying that the upload completed
+
     op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
 
 # @profile    
@@ -189,6 +192,8 @@ def main():
     # TODO: Think about whether we would need to read files generated a minute or two before/after current round
     if (num_pot_files > 0):
 
+        vpnum = 0
+        vp_to_vpnum = {}
         for fname in potential_files.strip().split('\n'):
             # print fname
             parts = fname.strip().split('.warts.gz')
@@ -202,16 +207,30 @@ def main():
                 # We found a warts file that belongs to this round and needs to be processed
 
                 if is_setup_done == 0:
-                    op_log_fp = setup_stuff()
+                    op_log_fp, vp_to_vpnum_fp = setup_stuff()
                     is_setup_done = 1
 
-                update_addr_to_resps(fname, addr_to_resps)
+                fname_suf = (fname.strip().split('/'))[-1]
+                # sys.stderr.write("fname_suf: {0}\n".format(fname_suf) )
+
+                vp = (fname_suf.strip().split('.'))[0]
+                # sys.stderr.write("vp: {0}\n".format(vp) )
+
+                # NOTE: If we ever decide to read the same VP's files from previous and this round, the vp_to_vpnum dict ensures we would still only use a single vpnum for a vp. Otherwise, the same VP could have one vpnum for the previous round and a different vpnum for the current round.
+                if vp not in vp_to_vpnum:
+                    vp_to_vpnum[vp] = vpnum
+                    vp_to_vpnum_fp.write("{0} {1}\n".format(vp, vpnum) )
+                    vpnum += 1
+
+                update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
 
                 op_log_fp.write("Done reading {0} at: {1}\n".format(fname, str(datetime.datetime.now() ) ) )
 
-
     # If there is anything in addr_to_resps, let's write it.
     write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp)
+
+    op_log_fp.close()
+    vp_to_vpnum_fp.close()
 
 
 ############## Read command line args and call main() #####################
