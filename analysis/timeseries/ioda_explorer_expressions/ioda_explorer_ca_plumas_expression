@@ -1,0 +1,32 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1567.asn.5650.responsive_addr_cnt
+    )
+  ),
+  "CA Plumas county Frontier responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1567.asn.5650.dropout_addr_cnt
+    )
+  ),
+  "CA Plumas county Frontier dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1567.asn.5650.antidropout_addr_cnt
+    )
+  ),
+  "CA Plumas county Frontier antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.1567.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs in Plumas county"
+)

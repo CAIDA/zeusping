@@ -1,0 +1,144 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "FL Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "FL Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "FL Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.33363.responsive_addr_cnt
+    )
+  ),
+  "FL Charter (33363) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.33363.dropout_addr_cnt
+    )
+  ),
+  "FL Charter (33363) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.33363.antidropout_addr_cnt
+    )
+  ),
+  "FL Charter (33363) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.5650.responsive_addr_cnt
+    )
+  ),
+  "FL Frontier responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.5650.dropout_addr_cnt
+    )
+  ),
+  "FL Frontier dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.5650.antidropout_addr_cnt
+    )
+  ),
+  "FL Frontier antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.22773.responsive_addr_cnt
+    )
+  ),
+  "FL Cox responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.22773.dropout_addr_cnt
+    )
+  ),
+  "FL Cox dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.22773.antidropout_addr_cnt
+    )
+  ),
+  "FL Cox antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.209.responsive_addr_cnt
+    )
+  ),
+  "FL Centurylink (209) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.209.dropout_addr_cnt
+    )
+  ),
+  "FL Centurylink (209) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.209.antidropout_addr_cnt
+    )
+  ),
+  "FL Centurylink (209) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.23089.responsive_addr_cnt
+    )
+  ),
+  "FL Hotwire responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.23089.dropout_addr_cnt
+    )
+  ),
+  "FL Hotwire dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4437.asn.23089.antidropout_addr_cnt
+    )
+  ),
+  "FL Hotwire antidropout_addr_cnt"
+)

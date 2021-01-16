@@ -1,0 +1,216 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "TX Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "TX Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "TX Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.5650.responsive_addr_cnt
+    )
+  ),
+  "TX Frontier responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.5650.dropout_addr_cnt
+    )
+  ),
+  "TX Frontier dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.5650.antidropout_addr_cnt
+    )
+  ),
+  "TX Frontier antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.11427.responsive_addr_cnt
+    )
+  ),
+  "TX Charter (11427) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.11427.dropout_addr_cnt
+    )
+  ),
+  "TX Charter (11427) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.11427.antidropout_addr_cnt
+    )
+  ),
+  "TX Charter (11427) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.20115.responsive_addr_cnt
+    )
+  ),
+  "TX Charter (20115) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.20115.dropout_addr_cnt
+    )
+  ),
+  "TX Charter (20115) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.20115.antidropout_addr_cnt
+    )
+  ),
+  "TX Charter (20115) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7029.responsive_addr_cnt
+    )
+  ),
+  "TX Windstream responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7029.dropout_addr_cnt
+    )
+  ),
+  "TX Windstream dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7029.antidropout_addr_cnt
+    )
+  ),
+  "TX Windstream antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.209.responsive_addr_cnt
+    )
+  ),
+  "TX Centurylink (209) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.209.dropout_addr_cnt
+    )
+  ),
+  "TX Centurylink (209) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.209.antidropout_addr_cnt
+    )
+  ),
+  "TX Centurylink (209) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7459.responsive_addr_cnt
+    )
+  ),
+  "TX Grande communications responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7459.dropout_addr_cnt
+    )
+  ),
+  "TX Grande communications dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.7459.antidropout_addr_cnt
+    )
+  ),
+  "TX Grande communications antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.16591.responsive_addr_cnt
+    )
+  ),
+  "TX Google Fiber responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.16591.dropout_addr_cnt
+    )
+  ),
+  "TX Google Fiber dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.16591.antidropout_addr_cnt
+    )
+  ),
+  "TX Google Fiber antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.17306.responsive_addr_cnt
+    )
+  ),
+  "TX JAB Wireless responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.17306.dropout_addr_cnt
+    )
+  ),
+  "TX JAB Wireless dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.asn.17306.antidropout_addr_cnt
+    )
+  ),
+  "TX JAB Wireless antidropout_addr_cnt"
+),

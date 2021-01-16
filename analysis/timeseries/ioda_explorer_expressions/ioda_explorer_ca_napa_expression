@@ -1,0 +1,56 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1950.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "CA Napa county Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1950.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CA Napa county Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1950.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "CA Napa county Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1950.asn.46375.responsive_addr_cnt
+    )
+  ),
+  "CA Napa county Sonic (46375) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1950.asn.46375.dropout_addr_cnt
+    )
+  ),
+  "CA Napa county Sonic (46375) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1950.asn.46375.antidropout_addr_cnt
+    )
+  ),
+  "CA Napa county Sonic (46375) antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.1950.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs in Napa county"
+)

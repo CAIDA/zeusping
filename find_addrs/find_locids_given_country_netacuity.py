@@ -2,6 +2,7 @@
 import sys
 
 reqd_ctry = sys.argv[1]
+op_fname = sys.argv[2]
 
 ctry_loc_ids = set()
 
@@ -21,6 +22,8 @@ for line in sys.stdin:
     if (ctry_code == reqd_ctry):
         ctry_loc_ids.add(locid)
 
-
+        
+op_fp = open(op_fname, 'w')
 for locid in ctry_loc_ids:
-    sys.stdout.write("{0}\n".format(locid) )
+    # sys.stdout.write("{0}\n".format(locid) )
+    op_fp.write("{0}\n".format(locid) )

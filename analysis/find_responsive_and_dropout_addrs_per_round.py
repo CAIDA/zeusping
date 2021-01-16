@@ -6,6 +6,9 @@
 import sys
 import os
 import datetime
+import wandio
+
+IS_COMPRESSED = 1
 
 this_t = int(sys.argv[1])
 
@@ -16,9 +19,15 @@ processed_op_dir = sys.argv[2]
 
 prev_t = this_t - 600
 # prev_t_file = '{0}/temp_{1}_to_{2}/resps_per_addr'.format(processed_op_dir, prev_t, this_t)
-prev_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, prev_t, this_t)
+
+if IS_COMPRESSED == 1:
+    prev_t_file = '{0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, prev_t, this_t)
+    prev_t_fp = wandio.open(prev_t_file, 'r')
+else:
+    prev_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, prev_t, this_t)
+    prev_t_fp = open(prev_t_file, 'r')
+    
 sys.stderr.write("Prev file: {0}\n".format(prev_t_file) )
-prev_t_fp = open(prev_t_file, 'r')
 
 unresp_addrs = set() # These are the set of unresponsive addresses at the beginning of this_t (i.e., they were unresponsive in the previous round)
 resp_addrs = set() # These are the set of responsive addresses at the beginning of this_t (i.e., they were responsive in the previous round)
@@ -43,9 +52,15 @@ for line in prev_t_fp:
 # print len(unresp_addrs)
 
 # this_t_file = '{0}/temp_{1}_to_{2}/resps_per_addr'.format(processed_op_dir, this_t, this_t + 600)
-this_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, this_t, this_t + 600)
+if IS_COMPRESSED == 1:
+    this_t_file = '{0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, this_t, this_t + 600)
+    this_t_fp = wandio.open(this_t_file, 'r')
+else:
+    this_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, this_t, this_t + 600)
+    this_t_fp = open(this_t_file, 'r')
+    
 sys.stderr.write("This file: {0}\n".format(this_t_file) )
-this_t_fp = open(this_t_file, 'r')
+
 
 dropout_addrs = set()
 newresp_addrs = set()
@@ -74,8 +89,13 @@ for line in this_t_fp:
 mkdir_cmd = 'mkdir -p {0}/responsive_and_dropout_addrs/'.format(processed_op_dir)
 os.system(mkdir_cmd)
 
-op_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}'.format(processed_op_dir, this_t, this_t + 600)
-op_fp = open(op_fname, 'w')
+if IS_COMPRESSED == 1:
+    op_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz'.format(processed_op_dir, this_t, this_t + 600)
+    op_fp = wandio.open(op_fname, 'w')
+else:
+    op_fname = '{0}/responsive_and_dropout_addrs/{1}_to_{2}'.format(processed_op_dir, this_t, this_t + 600)
+    op_fp = open(op_fname, 'w')
+    
 
 for addr in dropout_addrs:
     op_fp.write("{0} 0\n".format(addr) )
@@ -86,3 +106,5 @@ for addr in resp_addrs:
 
 for addr in newresp_addrs:
     op_fp.write("{0} 2\n".format(addr) )
+
+op_fp.close() # wandio does not like it if the fp is not closed explicitly

@@ -1,0 +1,216 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.5650.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Frontier responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.5650.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Frontier dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.5650.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Frontier antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.11427.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Charter (11427) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.11427.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Charter (11427) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.11427.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Charter (11427) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.20115.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Charter (20115) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.20115.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Charter (20115) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.20115.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Charter (20115) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7029.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Windstream responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7029.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Windstream dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7029.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Windstream antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.209.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Centurylink (209) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.209.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Centurylink (209) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.209.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Centurylink (209) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7459.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Grande communications responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7459.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Grande communications dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.7459.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Grande communications antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.16591.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County Google Fiber responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.16591.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Google Fiber dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.16591.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County Google Fiber antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.17306.responsive_addr_cnt
+    )
+  ),
+  "TX Jefferson County JAB Wireless responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.17306.dropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County JAB Wireless dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4431.3058.asn.17306.antidropout_addr_cnt
+    )
+  ),
+  "TX Jefferson County JAB Wireless antidropout_addr_cnt"
+),

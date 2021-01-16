@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# NOTE: Parts of this script are based off find_timeseries_pts.py
-
 import sys
 import pyipmeta
 from collections import namedtuple
@@ -9,7 +7,7 @@ import wandio
 import datetime
 
 
-def print_isi_addrs(op_fp):
+def print_isi_addrs():
 
     line_ct = 0
 
@@ -48,10 +46,13 @@ def print_isi_addrs(op_fp):
         # print ip, hist, hex_int, resp
 
         if resp == 1:
-            op_fp.write("{0}\n".format(ip) )
+            resp_fp.write("{0}\n".format(ip) )
+        elif resp == 0:
+            unresp_fp.write("{0}\n".format(ip) )
 
 
-op_fp = open(sys.argv[1], 'w')
-print_isi_addrs(op_fp)
+resp_fp = open(sys.argv[1], 'w')
+unresp_fp = open(sys.argv[2], 'w')
+print_isi_addrs()
     
     

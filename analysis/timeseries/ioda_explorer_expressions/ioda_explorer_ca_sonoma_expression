@@ -1,0 +1,80 @@
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.7922.responsive_addr_cnt
+    )
+  ),
+  "CA Sonoma county Comcast responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.7922.dropout_addr_cnt
+    )
+  ),
+  "CA Sonoma county Comcast dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.7922.antidropout_addr_cnt
+    )
+  ),
+  "CA Sonoma county Comcast antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.7065.responsive_addr_cnt
+    )
+  ),
+  "CA Sonoma county Sonic (7065) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.7065.dropout_addr_cnt
+    )
+  ),
+  "CA Sonoma county Sonic (7065) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.7065.antidropout_addr_cnt
+    )
+  ),
+  "CA Sonoma county Sonic (7065) antidropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.46375.responsive_addr_cnt
+    )
+  ),
+  "CA Sonoma county Sonic (46375) responsive_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.46375.dropout_addr_cnt
+    )
+  ),
+  "CA Sonoma county Sonic (46375) dropout_addr_cnt"
+),
+alias(
+  keepLastValue(
+    sumSeries(
+      projects.zeusping.test1.geo.netacuity.NA.US.4416.1953.asn.46375.antidropout_addr_cnt
+    )
+  ),
+  "CA Sonoma county Sonic (46375) antidropout_addr_cnt"
+),
+alias(
+  sumSeries(
+    keepLastValue(
+      active.*.geo.netacuity.NA.US.4416.1953.probers.team-1.caida-sdsc.*.up_slash24_cnt
+    )
+  ),
+  "Up /24s from all ISPs in Sonoma county"
+)
