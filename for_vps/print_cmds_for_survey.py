@@ -4,18 +4,24 @@ import sys
 campaign = sys.argv[1]
 num_splits = 2
 
-vps = [
-    {"loc" : "atlanta1", "plat" : "lin"},
-    {"loc" : "sf1", "plat" : "doc"},
-    {"loc" : "tor1", "plat" : "doc"},
-    {"loc" : "nyc1", "plat" : "doc"},
-    ]
+# vps = [
+#     {"loc" : "atlanta1", "plat" : "lin"},
+#     {"loc" : "sf1", "plat" : "doc"},
+#     {"loc" : "tor1", "plat" : "doc"},
+#     {"loc" : "nyc1", "plat" : "doc"},
+#     ]
 
 # vps = [
 #     {"loc" : "fremont2", "plat" : "lin"},
 #     {"loc" : "dallas2", "plat" : "doc"},
 #     {"loc" : "newark2", "plat" : "doc"},
 #     ]
+
+vps = [
+    {"loc" : "fremont3", "plat" : "lin"},
+    {"loc" : "dallas3", "plat" : "lin"},
+    {"loc" : "newark3", "plat" : "lin"},
+    ]
 
 for vp in vps:
     for i in range(num_splits):
