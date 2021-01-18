@@ -17,7 +17,7 @@ for line in regionasn_to_status_fp:
     num_resp = int(parts[2].strip())
     num_unresp = int(parts[3].strip())
 
-    pct_resp = float(parts[4].strip())
+    pct_resp = float(parts[5].strip())
     
     if pct_resp > 10 and num_resp > 1000:
         if region not in region_to_reqd_asns:
