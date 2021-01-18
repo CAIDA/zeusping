@@ -262,9 +262,9 @@ elif mode == 'isi-netacq':
     # NOTE: The scheme to populate_ip_to_as for *ASes where netacq_addrs belong* was not 100% accurate. Turned out that addresses belonging to an AS can sometimes geolocate to different countries (some addresses in AS58224 did not geolocate to Iran, geolocating instead to UAE and a handful of addresses in AS43754 geolocated to Brazil of all places). Thus, a more accurate version is to only identify responsive_addresses that are a strict subset of netacq_addrs.
     # reqd_asns = set(netacq_addrs_ip_to_as.viewvalues() )
     # populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_asns=reqd_asns)
-    populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_addrs=netacq_addrs)
-
-    resp_addrs = resp_ip_to_as.viewkeys()
+    # populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_addrs=netacq_addrs)
+    # resp_addrs = resp_ip_to_as.viewkeys()
+    resp_addrs = obtain_reqdips_from_ip2as_file(resp_ip_to_as_file, netacq_addrs)
 
     unresp_addrs = netacq_addrs - resp_addrs
 
@@ -281,7 +281,7 @@ if mode == 'zeus':
     update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
 elif mode == 'isi-netacq':
-    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, resp_ip_to_as)
+    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, netacq_addrs_ip_to_as)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, netacq_addrs_ip_to_as)
 
 
