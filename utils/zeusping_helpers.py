@@ -3,7 +3,7 @@ import shlex
 import subprocess
 
 
-def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code):
+def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code, ctry_code_to_fqdn=None):
     read_cmd = 'zcat {0}'.format(loc_fname)
     args = shlex.split(read_cmd)
 
@@ -23,4 +23,6 @@ def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_co
             loc_code = parts[3]
             idx_to_loc_code[idx] = loc_code
 
+            if ctry_code_to_fqdn is not None:
+                ctry_code_to_fqdn[loc_code] = fqdn
 

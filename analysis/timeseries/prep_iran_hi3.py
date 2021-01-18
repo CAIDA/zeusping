@@ -8,6 +8,12 @@ import pyipmeta
 # import wandio
 from collections import defaultdict
 import datetime
+import shlex
+import subprocess
+
+zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+sys.path.append(zeusping_utils_path + "/utils")
+import zeusping_helpers
 
 
 def populate_idx_to_val(this_d, list_of_keys, region_asn=False, region_idx='None'):
@@ -19,18 +25,18 @@ def populate_idx_to_val(this_d, list_of_keys, region_asn=False, region_idx='None
             inp_fname = "{0}/resp_dropout_per_round_{1}_AS{2}".format(inp_dir, region_idx, this_k)
 
         elif 'country' in mode:
-            inp_fname = "{0}/resp_dropout_per_round".format(inp_dir, this_k)
-            # print(inp_fname)
+            inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)
             
         elif 'asns' in mode:
             # inp_fname = "{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, this_k)
             inp_fname = "{0}/resp_dropout_per_round_AS{1}".format(inp_dir, this_k)            
         else:
             # inp_fname = "{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, this_k)
-            inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)            
+            inp_fname = "{0}/resp_dropout_per_round_{1}".format(inp_dir, this_k)
+
             
         try:
-            # TODO: wandio.open
+            # sys.stdout.write("{0} is the inp_fname\n".format(inp_fname) )
             # inp_fp = wandio.open(inp_fname, "r")
             inp_fp = open(inp_fname, "r")            
 
@@ -69,14 +75,14 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, region_idx=None
 
         if 'region-asn' in mode:
             # key = "projects.zeusping.test1.geo.netacuity.NA.US.4417.{0}.asn.{1}.dropout_addr_cnt".format(county_idx, this_k)
-            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.dropout_addr_cnt".format(idx_to_fqdn[region_idx], this_k)            
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.dropout_addr_cnt".format(idx_to_region_fqdn[region_idx], this_k)            
         elif 'regions' in mode:
-            key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(idx_to_fqdn[this_k])
+            key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(idx_to_region_fqdn[this_k])
         elif 'asns' in mode:
             key = "projects.zeusping.test1.routing.asn.{0}.dropout_addr_cnt".format(this_k)
         elif 'country' in mode:
-            # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
-            key = "projects.zeusping.test1.geo.netacuity.AS.IR.dropout_addr_cnt"            
+            # key = "projects.zeusping.test1.geo.netacuity.AS.IR.dropout_addr_cnt"
+            key = "projects.zeusping.test1.geo.netacuity.{0}.dropout_addr_cnt".format(ctry_code_to_fqdn[this_k])
 
         # print(key)
         e_key = key.encode('utf-8')
@@ -86,17 +92,17 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, region_idx=None
         kp.set(idx, n_d)
 
         if 'region-asn' in mode:
-            # key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.previously_responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
-            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.responsive_addr_cnt".format(idx_to_fqdn[region_idx], this_k)            
+            # key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.previously_responsive_addr_cnt".format(idx_to_region_fqdn[county_idx], this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.responsive_addr_cnt".format(idx_to_region_fqdn[region_idx], this_k)            
         elif 'regions' in mode:
-            # key = "projects.zeusping.test1.geo.netacuity.{0}.previously_responsive_addr_cnt".format(idx_to_fqdn[this_k])
-            key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(idx_to_fqdn[this_k])            
+            # key = "projects.zeusping.test1.geo.netacuity.{0}.previously_responsive_addr_cnt".format(idx_to_region_fqdn[this_k])
+            key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(idx_to_region_fqdn[this_k])            
         elif 'asns' in mode:
             # key = "projects.zeusping.test1.routing.asn.{0}.previously_responsive_addr_cnt".format(this_k)
             key = "projects.zeusping.test1.routing.asn.{0}.responsive_addr_cnt".format(this_k)
         elif 'country' in mode:
-            # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
-            key = "projects.zeusping.test1.geo.netacuity.AS.IR.responsive_addr_cnt"            
+            # key = "projects.zeusping.test1.geo.netacuity.AS.IR.responsive_addr_cnt"
+            key = "projects.zeusping.test1.geo.netacuity.{0}.responsive_addr_cnt".format(ctry_code_to_fqdn[this_k])
 
         e_key = key.encode('utf-8')            
         idx = kp.get_key(e_key)
@@ -105,18 +111,18 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, region_idx=None
         kp.set(idx, n_r)
 
         if 'region-asn' in mode:
-            # key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.newly_responsive_addr_cnt".format(idx_to_fqdn[county_idx], this_k)
-            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.antidropout_addr_cnt".format(idx_to_fqdn[region_idx], this_k)            
+            # key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.newly_responsive_addr_cnt".format(idx_to_region_fqdn[county_idx], this_k)
+            key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.antidropout_addr_cnt".format(idx_to_region_fqdn[region_idx], this_k)            
         elif 'regions' in mode:
-            # key = "projects.zeusping.test1.geo.netacuity.{0}.newly_responsive_addr_cnt".format(idx_to_fqdn[this_k])
-            key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(idx_to_fqdn[this_k])            
+            # key = "projects.zeusping.test1.geo.netacuity.{0}.newly_responsive_addr_cnt".format(idx_to_region_fqdn[this_k])
+            key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(idx_to_region_fqdn[this_k])            
         elif 'asns' in mode:
             # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
             key = "projects.zeusping.test1.routing.asn.{0}.antidropout_addr_cnt".format(this_k)
 
         elif 'country' in mode:
-            # key = "projects.zeusping.test1.routing.asn.{0}.newly_responsive_addr_cnt".format(this_k)
-            key = "projects.zeusping.test1.geo.netacuity.AS.IR.antidropout_addr_cnt"
+            # key = "projects.zeusping.test1.geo.netacuity.AS.IR.antidropout_addr_cnt"
+            key = "projects.zeusping.test1.geo.netacuity.{0}.antidropout_addr_cnt".format(ctry_code_to_fqdn[this_k])
 
         e_key = key.encode('utf-8')        
         idx = kp.get_key(e_key)
@@ -126,10 +132,10 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, region_idx=None
 
         if 'numpinged' in mode:
             if 'region-asn' in mode:
-                key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.pinged_addr_cnt".format(idx_to_fqdn[region_idx], this_k)
+                key = "projects.zeusping.test1.geo.netacuity.{0}.asn.{1}.pinged_addr_cnt".format(idx_to_region_fqdn[region_idx], this_k)
                 val = region_asn_to_numpinged[region_idx][this_k]
             elif 'regions' in mode:
-                key = "projects.zeusping.test1.geo.netacuity.{0}.pinged_addr_cnt".format(idx_to_fqdn[this_k])
+                key = "projects.zeusping.test1.geo.netacuity.{0}.pinged_addr_cnt".format(idx_to_region_fqdn[this_k])
                 val = region_to_numpinged[this_k]
             elif 'asns' in mode:
                 key = "projects.zeusping.test1.routing.asn.{0}.pinged_addr_cnt".format(this_k)
@@ -144,21 +150,25 @@ def set_keys_for_this_tstamp(this_d, list_of_keys, tstamp, mode, region_idx=None
         
 inp_dir = sys.argv[1]
 mode = sys.argv[2]
+ctry = sys.argv[3]
 
-# Get idx_to_fqdn for all regions
-idx_to_region = {}
-idx_to_fqdn = {}
+# Get idx_to_* dicts for all regions
+regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+idx_to_region_name = {}
+idx_to_region_fqdn = {}
+idx_to_region_code = {}
+zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_region_fqdn, idx_to_region_name, idx_to_region_code)
 
-# region_idxs_fp = wandio.open('/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz')
-# for line in region_idxs_fp:
-for line in sys.stdin:
-    parts = line.strip().split(',')
-    idx = parts[0].strip()
-    fqdn = parts[1].strip()
-    region_name = parts[2][1:-1] # Get rid of quotes
-    idx_to_region[idx] = region_name
-    idx_to_fqdn[idx] = fqdn
+# for region_idx in idx_to_region_name:
+#     sys.stdout.write("{0} {1}\n".format(region_idx, idx_to_region_name[region_idx]) )
 
+# Get idx_to_* dicts for all countries
+ctrys_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
+idx_to_ctry_name = {}
+idx_to_ctry_fqdn = {}
+idx_to_ctry_code = {}
+ctry_code_to_fqdn = {}
+zeusping_helpers.load_idx_to_dicts(ctrys_fname, idx_to_ctry_fqdn, idx_to_ctry_name, idx_to_ctry_code, ctry_code_to_fqdn=ctry_code_to_fqdn)
 
 ts = _pytimeseries.Timeseries()
 
@@ -189,7 +199,11 @@ ts.enable_backend(be)
 kp = ts.new_keypackage(reset=True)
 # print kp
 
-regions = idx_to_region.keys()
+regions = idx_to_region_name.keys()
+
+# NOTE: Thus far, we've only processed files from a single country at a time, but I intend for this to change. Thus, when we are processing multiple countries' files in future, we would like to be able to find resp_dropout_per_round_<countrycode> files and process them if available in this directory. To ensure that resp_dropout_per_round_<countrycode> files can be found, I made the necessary changes in find_timeseries_per_ctry_pts.py. 
+ctrys = set(idx_to_ctry_code.values() )
+ctrys.discard('AS') # Remove AS, since we sometimes end up with resp_dropout_per_round_AS files when the Autonomous System is missing. We're likely not going to be pinging American Samoa (the country code that 'AS' corresponds to) in any case...
 
 all_tstamps = set()
 
@@ -265,32 +279,39 @@ if 'regions' in mode:
     region_to_vals = {}
     populate_idx_to_val(region_to_vals, regions)
 
-# TODO: Change the following to include all ASes
-# asns = ['7922', '209', '20001']
-# asns = ['7922', '209', '13977', '22773', '701', '7155']
-asns = [
-    '58224',
-    '197207',
-    '44244',
-    '31549',
-    '12880',
-    '57218',
-    '16322',
-    '56402',
-    '39501',
-    '42337',
-    '50810',
-    '43754',
-    '49100',
-    '24631',
-    '41881',
-    '6736',
-    '25124',
-    '39308',
-    '25184',
-    '51074',
-]
+if ctry == 'IR':
+    asns = [
+        '58224',
+        '197207',
+        '44244',
+        '31549',
+        '12880',
+        '57218',
+        '16322',
+        '56402',
+        '39501',
+        '42337',
+        '50810',
+        '43754',
+        '49100',
+        '24631',
+        '41881',
+        '6736',
+        '25124',
+        '39308',
+        '25184',
+        '51074',
+    ]
+elif ctry == 'GH':
+    asns = [
+        '29614',
+        '35091',
+        '328571',
+        '37074',
+        '328439',
+    ]
 
+    
 if 'asns' in mode:
     asn_to_vals = {}
     populate_idx_to_val(asn_to_vals, asns)
@@ -304,8 +325,6 @@ if 'region-asn' in mode:
         # TODO: Call populate_idx_to_val on a region-ASN only if that ASN is pinged in the region perhaps?
         populate_idx_to_val(region_asn_to_vals[region_idx], asns, region_asn=True, region_idx=region_idx)
 
-ctrys = ['IR']
-        
 if 'country' in mode:
     country_to_vals = {}
     populate_idx_to_val(country_to_vals, ctrys)
