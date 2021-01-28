@@ -1,26 +1,39 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import glob
 import shlex
-import subprocess32
 import subprocess
 import os
 import datetime
 import json
 from collections import defaultdict
 import io
-import wandio
+
+if sys.version_info[0] == 2:
+    py_ver = 2
+    import wandio
+    import subprocess32
+else:
+    py_ver = 3
 
 # @profile
 def setup_stuff():
     mkdir_cmd = 'mkdir -p {0}/{1}_to_{2}/'.format(processed_op_dir, round_tstart, round_tend)
     args = shlex.split(mkdir_cmd)
-    try:
-        subprocess32.check_call(args)
-    except subprocess32.CalledProcessError:
-        sys.stderr.write("Mkdir failed for {0}; exiting\n".format(mkdir_cmd) )
-        sys.exit(1)
+    if py_ver == 2:
+        try:
+            subprocess32.check_call(args)
+        except subprocess32.CalledProcessError:
+            sys.stderr.write("Mkdir failed for {0}; exiting\n".format(mkdir_cmd) )
+            sys.exit(1)
+
+    else:
+        try:
+            subprocess.check_call(args)
+        except subprocess.CalledProcessError:
+            sys.stderr.write("Mkdir failed for {0}; exiting\n".format(mkdir_cmd) )
+            sys.exit(1)
 
     op_log_fp = open('{0}/{1}_to_{2}/process_round.log'.format(processed_op_dir, round_tstart, round_tend), 'w')
     op_log_fp.write("\nStarted reading files at: {0}\n".format(str(datetime.datetime.now() ) ) )
@@ -47,11 +60,19 @@ def find_potential_files():
     swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
     # print swift_list_cmd
     args = shlex.split(swift_list_cmd)
-    try:
-        potential_files = subprocess32.check_output(args)
-    except subprocess32.CalledProcessError:
-        sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
-        sys.exit(1)
+    if py_ver == 2:
+        try:
+            potential_files = subprocess32.check_output(args)
+        except subprocess32.CalledProcessError:
+            sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
+            sys.exit(1)
+    else:
+        try:
+            potential_files = subprocess.check_output(args)
+        except subprocess.CalledProcessError:
+            sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
+            sys.exit(1)
+            
 
     return potential_files
 
@@ -59,18 +80,30 @@ def find_potential_files():
 def update_addr_to_resps(fname, addr_to_resps, vpnum):
 
     wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
-    print wandiocat_cmd
+    sys.stderr.write("{0}\n".format(wandiocat_cmd) )
     args = shlex.split(wandiocat_cmd)
 
-    try:
-        # If shell != True, then the command can be a sequence
-        # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
+    if py_ver == 2:
+        try:
+            # If shell != True, then the command can be a sequence
+            # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
+
+            # If shell == True, then the command needs to be a string and not a sequence
+            proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+        except:
+            sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
+            sys.exit(1)
+    else:
+        try:
+            # If shell != True, then the command can be a sequence
+            # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
+
+            # If shell == True, then the command needs to be a string and not a sequence
+            proc = subprocess.Popen(wandiocat_cmd, stdout=subprocess.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+        except:
+            sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
+            sys.exit(1)
         
-        # If shell == True, then the command needs to be a string and not a sequence
-        proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
-    except:
-        sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
-        sys.exit(1)
         
     # try:
     #     ping_lines = subprocess32.check_output(args)
@@ -107,7 +140,7 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
             try:
                 data = json.loads(line)
             except ValueError:
-                print line
+                sys.stderr.write("Json error for:\n {0}\n".format(line) )
                 continue
 
             dst = data['dst']
@@ -148,26 +181,40 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
     if len(addr_to_resps) > 0:
 
-        op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
-        ping_aggrs_fp = open(op_fname, 'w')
-        dst_ct = 0
-        for dst in addr_to_resps:
+        if write_bin == 0:
+            op_fname = '{0}/{1}_to_{2}/resps_per_round_ascii'.format(processed_op_dir, round_tstart, round_tend)
+            ping_aggrs_fp = open(op_fname, 'w')
+            dst_ct = 0
+            for dst in addr_to_resps:
 
-            dst_ct += 1
-            this_d = addr_to_resps[dst]
-            ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dst, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
+                dst_ct += 1
+                this_d = addr_to_resps[dst]
+                ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dst, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
 
-        ping_aggrs_fp.close()
+            ping_aggrs_fp.close()
+
+        else:
+            op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
+            ping_aggrs_fp = open(op_fname, 'wb')
 
         # Compress the file
         gzip_cmd = 'gzip {0}'.format(op_fname)
         # sys.stderr.write("{0}\n".format(gzip_cmd) )
         args = shlex.split(gzip_cmd)
-        try:
-            subprocess32.check_call(args)
-        except subprocess32.CalledProcessError:
-            sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
-            sys.exit(1)
+
+        if py_ver == 2:
+            try:
+                subprocess32.check_call(args)
+            except subprocess32.CalledProcessError:
+                sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+                sys.exit(1)
+        else:
+            try:
+                subprocess.check_call(args)
+            except subprocess.CalledProcessError:
+                sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+                sys.exit(1)
+            
 
         # TODO: Upload to Swift
 
@@ -194,7 +241,13 @@ def main():
 
         vpnum = 0
         vp_to_vpnum = {}
-        for fname in potential_files.strip().split('\n'):
+
+        if py_ver == 2:
+            fname_list = potential_files.strip().split('\n')
+        else:
+            fname_list = potential_files.decode().strip().split('\n')
+
+        for fname in fname_list:
             # print fname
             parts = fname.strip().split('.warts.gz')
             # print parts
@@ -203,7 +256,7 @@ def main():
 
             round_num = int(file_ctime)/600
 
-            if round_num == reqd_round_num:
+            if int(round_num) == reqd_round_num:
                 # We found a warts file that belongs to this round and needs to be processed
 
                 if is_setup_done == 0:
@@ -236,9 +289,10 @@ def main():
 ############## Read command line args and call main() #####################
 campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
 round_tstart = int(sys.argv[2])
+write_bin = int(sys.argv[3])
 
 round_tend = round_tstart + 600
 # NOTE: Change output dir for each test!
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_test'.format(campaign)
+processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbin'.format(campaign)
 
 main()
