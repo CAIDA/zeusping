@@ -233,7 +233,7 @@ def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate):
     annotated_op_fname = "{0}_annotated".format(addr_filename)
     resp_addrs, unresp_addrs = get_zeus_addrs(addr_filename, annotated_op_fname, pinged_ip_to_as, pinged_ip_to_usstate)
 
-    return resp_addrs, unresp_addrs
+    return resp_addrs, unresp_addrs, addr_filename
 
     
 def find_isinetacq_resp_unresp(netacq_addrs_ip_to_as):
@@ -300,7 +300,7 @@ if mode == 'zeus':
     pinged_ip_to_as = {}
     pinged_ip_to_usstate = {}
 
-    resp_addrs, unresp_addrs = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate)
+    resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate)
     update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
     op_fname = "{0}_regionasn_to_status".format(addr_filename)
