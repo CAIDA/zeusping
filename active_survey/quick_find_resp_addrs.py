@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 # NOTE: Parts of this script are based off find_timeseries_pts.py
-# TODO: Use obtain_reqdips_from_ip2as_file and see if there are benefits
 
 import sys
 import pyipmeta
@@ -9,7 +8,7 @@ from collections import namedtuple
 import wandio
 import datetime
 
-mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'zeus' for ZeusPing
+
 
 # Load pyipmeta in order to perform county lookups per address
 # provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
@@ -209,10 +208,8 @@ def write_region_asn_to_status(region_asn_to_status, op_fname):
             op_fp.write("{0} {1} {2} {3} {4} {5:.4f}\n".format(region, asn, tot_resp, tot_unresp, (tot_resp + tot_unresp), resp_pct) )
 
             
-# NOTE: When running this for ISI's hitlist and/or Zmap scans, we'll need some way to get the ASN of each address
-
-if mode == 'zeus':
-
+def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate):
+    
     # Find the region and AS of each pinged address. Since we had previously populated this information, we just need to load the correct files
     # Among pinged addresses, find who responded and who did not (addr_filename)
     # Find % responsive per AS
@@ -224,9 +221,6 @@ if mode == 'zeus':
 
     # Load pinged_ip_to_as and pinged_ip_to_usstate using previously crunched files
     
-    pinged_ip_to_as = {}
-    pinged_ip_to_usstate = {}
-
     usstate_to_reqd_asns = {}
     populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
 
@@ -239,16 +233,16 @@ if mode == 'zeus':
     annotated_op_fname = "{0}_annotated".format(addr_filename)
     resp_addrs, unresp_addrs = get_zeus_addrs(addr_filename, annotated_op_fname, pinged_ip_to_as, pinged_ip_to_usstate)
 
-    
-# This is the "isi-netacq" approach, where we determine the set of all addresses in an aggregate using Netacuity + pfx2as, instead of using the addresses that had been pinged by ISI    
-elif mode == 'isi-netacq':
+    return resp_addrs, unresp_addrs
 
-    # Find the AS of each potential address that could/should have been pinged in an aggregate, according to Netacuity + pfx2AS
-    # Of these potential addresses, find the subset that responded. For this subset of responding addresses, find the AS (although TODO: don't need to find the AS again).
+    
+def find_isinetacq_resp_unresp(netacq_addrs_ip_to_as):
+    # Find the AS of each potential address that could/should have been pinged in an aggregate  (country-AS, say), according to Netacuity + pfx2AS
+    # Of these potential addresses, find the subset that responded. 
     # Find % responsive per AS
     
     netacq_addrs_ip_to_as_file = sys.argv[2]
-    netacq_addrs_ip_to_as = {}
+
     populate_ip_to_as(netacq_addrs_ip_to_as_file, netacq_addrs_ip_to_as)
 
     # Let's get a set that contains all addresses in Netacuity + pfx2as for a given aggregate that we're exploring
@@ -273,25 +267,61 @@ elif mode == 'isi-netacq':
     # print len(unresp_addrs)
 
     # ip_to_as = netacq_addrs_ip_to_as # update_region_asn_to_status() requires a variable called ip_to_as
+
+    return resp_addrs, unresp_addrs
+
+
+def find_isipinged_resp_unresp(isipinged_addrs_ip_to_as):
+    # TODO: This is a temporary solution to getting around the memory problem. Ultimately, I'll have to use the Patricia trie approach to find the ASes of individual addresses on demand. Will take more time but will definitely result in improved processing speed.
+    # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '11272', '209', '33363', '7155', '23089', '6128', '46690'} # Testing
+    reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '209', '7155'} # Testing
     
+    resp_addrs_ip_to_as_file = sys.argv[2]
+    populate_ip_to_as(resp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
+    resp_addrs = set()
+    # resp_addrs = isipinged_addrs_ip_to_as.viewkeys()    
+    for addr in isipinged_addrs_ip_to_as:
+        resp_addrs.add(addr)
+
+    unresp_addrs_ip_to_as_file = sys.argv[3]
+    populate_ip_to_as(unresp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
+    all_addrs = isipinged_addrs_ip_to_as.viewkeys()
+
+    unresp_addrs = all_addrs - resp_addrs
+
+    return resp_addrs, unresp_addrs
+
     
+mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'zeus' for ZeusPing            
 region_asn_to_status = {"resp" : {}, "unresp" : {}}
-# Maybe this can eventually even have county-level data. For now, I will begin with state-level data.
+
+# NOTE: I've assumed that we've already found the AS of each address using ipmeta-lookup
 if mode == 'zeus':
+    pinged_ip_to_as = {}
+    pinged_ip_to_usstate = {}
+
+    resp_addrs, unresp_addrs = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate)
     update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
+    op_fname = "{0}_regionasn_to_status".format(addr_filename)
+    
+# This is the "isi-netacq" approach, where we determine the set of all addresses in an aggregate using Netacuity + pfx2as, instead of using the addresses that had been pinged by ISI    
 elif mode == 'isi-netacq':
+    netacq_addrs_ip_to_as = {}
+    resp_addrs, unresp_addrs = find_isinetacq_resp_unresp(netacq_addrs_ip_to_as)
     update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, netacq_addrs_ip_to_as)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, netacq_addrs_ip_to_as)
-
-
-if mode == 'zeus':
-    op_fname = "{0}_regionasn_to_status".format(addr_filename)
-elif mode == 'isi-netacq':
     aggr = sys.argv[4]
     op_fname = "./data/{0}_isinetacqaddrs".format(aggr)
-elif mode == 'isi':
-    pass
+
+elif mode == 'isi-pinged':
+    isipinged_addrs_ip_to_as = {}
+    resp_addrs, unresp_addrs = find_isipinged_resp_unresp(isipinged_addrs_ip_to_as)
+    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, isipinged_addrs_ip_to_as)
+    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, isipinged_addrs_ip_to_as)
+    aggr = sys.argv[4]
+    op_fname = "./data/{0}_isipingedaddrs".format(aggr)
+
 
 write_region_asn_to_status(region_asn_to_status, op_fname)
 
