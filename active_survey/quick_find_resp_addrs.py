@@ -137,16 +137,18 @@ def get_zeus_addrs(addr_filename, annotated_op_fname, ip_to_as, ip_to_usstate):
         else:
             unresp_addrs.add(addr)
 
-        if addr in ip_to_usstate:
-            usstate = ip_to_usstate[addr]
-        else:
-            usstate = '-1'
+        # if addr in ip_to_usstate:
+        #     usstate = ip_to_usstate[addr]
+        # else:
+        #     usstate = '-1'
+        usstate = ip_to_usstate.get(addr, '-1')
 
         # Find ASN
-        if addr in ip_to_as:
-            asn = ip_to_as[addr]
-        else:
-            asn = '-1'
+        # if addr in ip_to_as:
+        #     asn = ip_to_as[addr]
+        # else:
+        #     asn = '-1'
+        asn = ip_to_as.get(addr, '-1')
 
         annotated_op_fp.write("{0} {1} {2}\n".format(line[:-1], usstate, asn) )            
 
@@ -164,11 +166,12 @@ def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as, ip_to_reg
                 region = ip_to_region[addr]
 
         # Find ASN
-        if addr in ip_to_as:
-            asn = ip_to_as[addr]
-        else:
-            asn = '-1'
-
+        # if addr in ip_to_as:
+        #     asn = ip_to_as[addr]
+        # else:
+        #     asn = '-1'
+        asn = ip_to_as.get(addr, '-1')
+        
         if region not in region_asn_to_status:
             region_asn_to_status[region] = {}
 
@@ -208,7 +211,7 @@ def write_region_asn_to_status(region_asn_to_status, op_fname):
             op_fp.write("{0} {1} {2} {3} {4} {5:.4f}\n".format(region, asn, tot_resp, tot_unresp, (tot_resp + tot_unresp), resp_pct) )
 
             
-def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate):
+def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='usstates'):
     
     # Find the region and AS of each pinged address. Since we had previously populated this information, we just need to load the correct files
     # Among pinged addresses, find who responded and who did not (addr_filename)
@@ -216,18 +219,22 @@ def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate):
 
     addr_filename = sys.argv[2]
     netacq_date = sys.argv[3]
-    pfx2as_date = sys.argv[4]
-    usstate_to_reqd_asns_fname = sys.argv[5]
 
     # Load pinged_ip_to_as and pinged_ip_to_usstate using previously crunched files
-    
-    usstate_to_reqd_asns = {}
-    populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
+    if fn_mode == 'usstates':
+        pfx2as_date = sys.argv[4]
+        usstate_to_reqd_asns_fname = sys.argv[5]
+        usstate_to_reqd_asns = {}
+        populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
 
-    for usstate in usstate_to_reqd_asns:
-        usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_{1}.pfx2as.gz'.format(usstate, pfx2as_date)
-        
-        populate_ip_to_as(usstate_ip_to_as_file, pinged_ip_to_as, reqd_asns=usstate_to_reqd_asns[usstate], region_name=usstate, ip_to_region=pinged_ip_to_usstate)
+        for usstate in usstate_to_reqd_asns:
+            usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_{1}.pfx2as.gz'.format(usstate, pfx2as_date)
+
+            populate_ip_to_as(usstate_ip_to_as_file, pinged_ip_to_as, reqd_asns=usstate_to_reqd_asns[usstate], region_name=usstate, ip_to_region=pinged_ip_to_usstate)
+
+    elif fn_mode == 'givenip2as':
+        ip_to_as_file = sys.argv[4]
+        populate_ip_to_as(ip_to_as_file, pinged_ip_to_as)
         
     # Now that pinged_ip_to_asn and pinged_ip_to_usstate are loaded, let's walk through the address filename and identify which addresses responded and which addresses did not.
     annotated_op_fname = "{0}_annotated".format(addr_filename)
@@ -296,11 +303,15 @@ mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'z
 region_asn_to_status = {"resp" : {}, "unresp" : {}}
 
 # NOTE: I've assumed that we've already found the AS of each address using ipmeta-lookup
-if mode == 'zeus':
+if mode == 'zeus' or mode == 'zeus-givenip2as':
     pinged_ip_to_as = {}
     pinged_ip_to_usstate = {}
 
-    resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate)
+    if mode == 'zeus':
+        resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='usstates')
+    elif mode == 'zeus-givenip2as':
+        # This mode is when we provide the ip2as file for all ips in addr_filename in a single file specified as a command-line argument
+        resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='givenip2as')
     update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
     op_fname = "{0}_regionasn_to_status".format(addr_filename)
