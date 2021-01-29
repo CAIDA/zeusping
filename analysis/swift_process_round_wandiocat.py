@@ -10,11 +10,14 @@ import json
 from collections import defaultdict
 import array
 import io
+import struct
+import socket
 
 if sys.version_info[0] == 2:
     py_ver = 2
     import wandio
     import subprocess32
+    from sc_warts import WartsReader
 else:
     py_ver = 3
 
@@ -192,6 +195,72 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
     # remaining_ping_lines = proc.communicate()[0]
     # for line in remaining_ping_lines.splitlines():
     #     line_ct += 1
+
+
+def readwarts_update_addr_to_resps(fname, addr_to_resps, vpnum):
+
+    wandiocat_cmd = 'wandiocat swift://zeusping-warts/{0}'.format(fname)
+    sys.stderr.write("{0}\n".format(wandiocat_cmd) )
+    args = shlex.split(wandiocat_cmd)
+
+    if py_ver == 2:
+        try:
+            # If shell != True, then the command can be a sequence
+            # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
+
+            # If shell == True, then the command needs to be a string and not a sequence
+            proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+        except:
+            sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
+            sys.exit(1)
+    else:
+        try:
+            # If shell != True, then the command can be a sequence
+            # proc = subprocess32.Popen(args, stdout=subprocess32.PIPE, bufsize=-1)
+
+            # If shell == True, then the command needs to be a string and not a sequence
+            proc = subprocess.Popen(wandiocat_cmd, stdout=subprocess.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+        except:
+            sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
+            sys.exit(1)
+
+    mask = 1<<vpnum
+
+    ct = 0
+    with proc.stdout:
+        w = WartsReader(proc.stdout, verbose=False)
+        while True:
+            (flags, hops) = w.next()
+            if flags == False: break
+
+            
+            dst = flags['dstaddr']
+
+            # Don't increment. Bit shift to vp_num position and set bit to 1
+            addr_to_resps[dst][0] |= (mask)  # 0th index is sent packets
+
+            ct += 1
+            
+            if len(hops) > 0:
+                icmp = hops[0]['icmp']
+                icmp_type = (icmp >> 8) & 0xFF
+                icmp_code = (icmp >> 0) & 0xFF
+
+                if icmp_type == 0 and icmp_code == 0:
+                    # Responded to the ping and response is indicative of working connectivity
+                    addr_to_resps[dst][1] |= (mask) # 1st index is successful ping response
+                elif icmp_type == 3 and icmp_code == 1:
+                    # Destination host unreachable
+                    addr_to_resps[dst][2] |= (mask) # 2nd index is Destination host unreachable
+                else:
+                    addr_to_resps[dst][3] |= (mask) # 3rd index is the rest of icmp stuff. So mostly errors.
+
+            else:
+                
+                addr_to_resps[dst][4] |= (mask) # 4th index is lost ping
+
+    proc.wait() # Wait for the subprocess to exit
+    
     
 @profile
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
@@ -212,6 +281,14 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
         else:
             op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
             ping_aggrs_fp = open(op_fname, 'wb')
+
+            for dst in addr_to_resps:
+                try:
+                    ipid = struct.unpack("!I", socket.inet_aton(dst))[0]
+                except socket.error:
+                    continue
+
+                
 
         # Compress the file
         gzip_cmd = 'gzip {0}'.format(op_fname)
@@ -292,7 +369,8 @@ def main():
                     vp_to_vpnum_fp.write("{0} {1}\n".format(vp, vpnum) )
                     vpnum += 1
 
-                update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
+                # update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
+                readwarts_update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
 
                 op_log_fp.write("Done reading {0} at: {1}\n".format(fname, str(datetime.datetime.now() ) ) )
 
@@ -307,6 +385,9 @@ def main():
 campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
 round_tstart = int(sys.argv[2])
 write_bin = int(sys.argv[3])
+
+if write_bin == 1:
+    pass
 
 round_tend = round_tstart + 600
 # NOTE: Change output dir for each test!
