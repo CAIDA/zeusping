@@ -8,6 +8,7 @@ import os
 import datetime
 import json
 from collections import defaultdict
+import array
 import io
 
 if sys.version_info[0] == 2:
@@ -249,7 +250,8 @@ def main():
     num_pot_files = len(potential_files)
     is_setup_done = 0 # By default, we wouldn't create directories or output files; not unless there are actually warts files to process for this round. This flag keeps track of whether we've "setup" (which we would only have done had we encountered useful warts files).
     # addr_to_resps = {}
-    addr_to_resps = defaultdict(lambda : [0, 0, 0, 0, 0])
+    # addr_to_resps = defaultdict(lambda : [0, 0, 0, 0, 0])
+    addr_to_resps = defaultdict(lambda : array.array('H', [0, 0, 0, 0, 0]) )
 
     # TODO: Think about whether we would need to read files generated a minute or two before/after current round
     if (num_pot_files > 0):
