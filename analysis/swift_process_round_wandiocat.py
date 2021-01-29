@@ -17,7 +17,22 @@ if sys.version_info[0] == 2:
 else:
     py_ver = 3
 
-# @profile
+# No-op version of @profile, so that we don't need to keep uncommenting @profile when we're not using kernprof
+try:
+    # Python 2
+    import __builtin__ as builtins
+except ImportError:
+    # Python 3
+    import builtins
+
+try:
+    builtins.profile
+except AttributeError:
+    # No line profiler, provide a pass-through version
+    def profile(func): return func
+    builtins.profile = profile
+
+@profile
 def setup_stuff():
     mkdir_cmd = 'mkdir -p {0}/{1}_to_{2}/'.format(processed_op_dir, round_tstart, round_tend)
     args = shlex.split(mkdir_cmd)
@@ -42,7 +57,7 @@ def setup_stuff():
 
     return op_log_fp, vp_to_vpnum_fp
 
-# @profile
+@profile
 def find_potential_files():
 
     # NOTE: We may want to obtain the files for the previous 10-minute round too but *not* the next 10-minute round.
@@ -76,7 +91,7 @@ def find_potential_files():
 
     return potential_files
 
-# @profile        
+@profile        
 def update_addr_to_resps(fname, addr_to_resps, vpnum):
 
     wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
@@ -177,7 +192,7 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
     # for line in remaining_ping_lines.splitlines():
     #     line_ct += 1
     
-# @profile
+@profile
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
     if len(addr_to_resps) > 0:
 
@@ -187,7 +202,7 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             dst_ct = 0
             for dst in addr_to_resps:
 
-                dst_ct += 1
+                # dst_ct += 1 # Since we don't use this variable, let's not update it. We get to save 6 seconds according to kernprof
                 this_d = addr_to_resps[dst]
                 ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dst, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
 
@@ -222,7 +237,7 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
 
     op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
 
-# @profile    
+@profile    
 def main():
     ############## Main begins here #####################
 
