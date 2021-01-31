@@ -283,12 +283,15 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             ping_aggrs_fp = open(op_fname, 'wb')
 
             for dst in addr_to_resps:
+                # TODO: Move ipid calculation to read_resps_per_addr, so that we don't need to store long ip address strings in memory
                 try:
                     ipid = struct.unpack("!I", socket.inet_aton(dst))[0]
                 except socket.error:
                     continue
 
-                
+                ping_aggrs_fp.write(struct_fmt.pack(ipid, *(addr_to_resps[dst]) ) )
+
+            ping_aggrs_fp.close()
 
         # Compress the file
         gzip_cmd = 'gzip {0}'.format(op_fname)
@@ -369,8 +372,8 @@ def main():
                     vp_to_vpnum_fp.write("{0} {1}\n".format(vp, vpnum) )
                     vpnum += 1
 
-                # update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
-                readwarts_update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
+                update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
+                # readwarts_update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp]) # Unfortunately, this function was woefully slow, so reverting to reading the output of sc_warts2json
 
                 op_log_fp.write("Done reading {0} at: {1}\n".format(fname, str(datetime.datetime.now() ) ) )
 
@@ -387,7 +390,7 @@ round_tstart = int(sys.argv[2])
 write_bin = int(sys.argv[3])
 
 if write_bin == 1:
-    pass
+    struct_fmt = struct.Struct("I 5H")
 
 round_tend = round_tstart + 600
 # NOTE: Change output dir for each test!
