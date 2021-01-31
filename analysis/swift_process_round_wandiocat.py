@@ -164,8 +164,13 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
 
             dst = data['dst']
 
+            try:
+                dstipid = struct.unpack("!I", socket.inet_aton(dst))[0]
+            except socket.error:
+                continue
+
             # Don't increment. Bit shift to vp_num position and set bit to 1
-            addr_to_resps[dst][0] |= (mask)  # 0th index is sent packets
+            addr_to_resps[dstipid][0] |= (mask)  # 0th index is sent packets
 
             # pinged_ts = data['start']['sec']
 
@@ -178,16 +183,16 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
 
                 if icmp_type == 0 and icmp_code == 0:
                     # Responded to the ping and response is indicative of working connectivity
-                    addr_to_resps[dst][1] |= (mask) # 1st index is successful ping response
+                    addr_to_resps[dstipid][1] |= (mask) # 1st index is successful ping response
                 elif icmp_type == 3 and icmp_code == 1:
                     # Destination host unreachable
-                    addr_to_resps[dst][2] |= (mask) # 2nd index is Destination host unreachable
+                    addr_to_resps[dstipid][2] |= (mask) # 2nd index is Destination host unreachable
                 else:
-                    addr_to_resps[dst][3] |= (mask) # 3rd index is the rest of icmp stuff. So mostly errors.
+                    addr_to_resps[dstipid][3] |= (mask) # 3rd index is the rest of icmp stuff. So mostly errors.
 
             else:
 
-                addr_to_resps[dst][4] |= (mask) # 4th index is lost ping
+                addr_to_resps[dstipid][4] |= (mask) # 4th index is lost ping
 
             
     proc.wait() # Wait for the subprocess to exit
@@ -282,14 +287,9 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
             ping_aggrs_fp = open(op_fname, 'wb')
 
-            for dst in addr_to_resps:
+            for dst in sorted(addr_to_resps):
                 # TODO: Move ipid calculation to read_resps_per_addr, so that we don't need to store long ip address strings in memory
-                try:
-                    ipid = struct.unpack("!I", socket.inet_aton(dst))[0]
-                except socket.error:
-                    continue
-
-                ping_aggrs_fp.write(struct_fmt.pack(ipid, *(addr_to_resps[dst]) ) )
+                ping_aggrs_fp.write(struct_fmt.pack(dst, *(addr_to_resps[dst]) ) )
 
             ping_aggrs_fp.close()
 
