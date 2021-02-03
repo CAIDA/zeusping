@@ -160,12 +160,14 @@ def get_zeus_addrs(addr_filename, annotated_op_fname, ip_to_as, ip_to_usstate):
 
 def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_to_region=None, rtree=None, must_find_region=False, ipm=None, idx_to_region_name=None, is_US=False, temp_suf=None, is_ipid=False):
 
-    temp_fp = open('/scratch/zeusping/data/quick_census/isi/temp_annotated_{0}'.format(temp_suf), 'w')
-    
     for addr in addrs:
         # Find region
 
         if is_ipid == True:
+            # If we had stored the addrs as 32-byte integers for more
+            # efficient memory usage, obtain the ip_str from the
+            # addr. We need the ip_str for finding the ip's region and
+            # the ip's AS.
             addr_str = socket.inet_ntoa(struct.pack('!L', addr))
             addr = addr_str
 
@@ -179,9 +181,8 @@ def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_t
             ctry_code = res[0]['country_code']
 
             if is_US is True:
-                # We already made this check in populate_ips, no need to waste time again doing it
-                # if ctry_code != 'US':
-                #     continue
+                if ctry_code != 'US':
+                    continue
 
                 loc_id = str(res[0]['polygon_ids'][1]) # This is for region info
 
@@ -194,10 +195,6 @@ def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_t
 
 
         # Find ASN
-        # if addr in ip_to_as:
-        #     asn = ip_to_as[addr]
-        # else:
-        #     asn = '-1'
         if ip_to_as is not None:
             asn = ip_to_as.get(addr, 'UNK')
         elif rtree is not None:
@@ -223,8 +220,6 @@ def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_t
 
         region_asn_to_status[region][asn] += 1
         # region_asn_to_status[region][asn].add(addr)
-
-        temp_fp.write("{0} {1} {2}\n".format(addr, region, asn) )
 
         
 def write_region_asn_to_status(region_asn_to_status, op_fname):
@@ -322,9 +317,11 @@ def find_isinetacq_resp_unresp(netacq_addrs_ip_to_as):
     return resp_addrs, unresp_addrs
 
 
-def populate_ips(addrs_ip_to_as_file, is_US=False, ipm=None):
+def update_region_asn_to_status_isipinged(region_asn_to_status, addrs_ip_to_as_file, idx_to_region_name, rtree, is_US=False, ipm=None, temp_suf=None):
 
-    addrs = set()
+    # temp_fp = open('/scratch/zeusping/data/quick_census/isi/temp_annotated_{0}'.format(temp_suf), 'w')
+    
+    # addrs = set()
     
     ip_to_as_fp = wandio.open(addrs_ip_to_as_file)
     line_ct = 0
@@ -337,7 +334,6 @@ def populate_ips(addrs_ip_to_as_file, is_US=False, ipm=None):
 
         if line_ct%1000000 == 0:
             sys.stderr.write("{0} ip_to_as lines for {1} read at {2}\n".format(line_ct, addrs_ip_to_as_file, str(datetime.datetime.now() ) ) )
-            sys.stderr.write("len(addrs): {0}\n".format(len(addrs) ) )
 
         parts = line.strip().split('|')
 
@@ -346,53 +342,69 @@ def populate_ips(addrs_ip_to_as_file, is_US=False, ipm=None):
 
         addr = parts[0].strip()
 
+        region = '-1'
+        
         res = ipm.lookup(addr)
 
         ctry_code = res[0]['country_code']
         
         if is_US is True:
             if ctry_code == 'US':
-                # try:
-                #     ipid = struct.unpack("!I", socket.inet_aton(addr))[0]
-                # except socket.error:
-                #     continue
-                # addrs.add(ipid)
-                addrs.add(addr)
+                loc_id = str(res[0]['polygon_ids'][1]) # This is for region info
+
+                if (loc_id) in idx_to_region_name:
+                    loc_name = idx_to_region_name[(loc_id)]
+                    region = loc_name
+                    
+                rnode = rtree.search_best(addr)
+                if rnode is None:
+                    asn = 'UNK'
+                else:
+                    asn = rnode.data["origin"]
+
+                if region not in region_asn_to_status:
+                    region_asn_to_status[region] = {}
+
+                if asn not in region_asn_to_status[region]:
+                    region_asn_to_status[region][asn] = 0
+                    # region_asn_to_status[region][asn] = set()
+
+                region_asn_to_status[region][asn] += 1
+                # region_asn_to_status[region][asn].add(addr)
+                
+                # temp_fp.write("{0}|{1}|{2}\n".format(addr, region, asn) )
+    
         else:
             if ctry_code != 'US':
-                # try:
-                #     ipid = struct.unpack("!I", socket.inet_aton(addr))[0]
-                # except socket.error:
-                #     continue
-                # addrs.add(ipid)
-                addrs.add(addr)
+                region = ctry_code
+                
+                rnode = rtree.search_best(addr)
+                if rnode is None:
+                    asn = 'UNK'
+                else:
+                    asn = rnode.data["origin"]
 
-    return addrs
-    
-    
-def find_isipinged_resp_unresp(ipm, is_US):
-    
-    resp_addrs_ip_to_as_file = sys.argv[2]
-    # populate_ips just populates the ip addresses in the ip_to_as file. 
-    resp_addrs = populate_ips(resp_addrs_ip_to_as_file, is_US, ipm=ipm)
+                if region not in region_asn_to_status:
+                    region_asn_to_status[region] = {}
 
-    unresp_addrs_ip_to_as_file = sys.argv[3]
-    unresp_addrs = populate_ips(unresp_addrs_ip_to_as_file, is_US, ipm=ipm)
+                if asn not in region_asn_to_status[region]:
+                    region_asn_to_status[region][asn] = 0
+                    # region_asn_to_status[region][asn] = set()
 
-    return resp_addrs, unresp_addrs
+                region_asn_to_status[region][asn] += 1
+                # region_asn_to_status[region][asn].add(addr)
+
+                # temp_fp.write("{0}|{1}|{2}\n".format(addr, region, asn) )
 
     
-def find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, reqd_asns):
+def find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, resp_addrs_ip_to_as_file, unresp_addrs_ip_to_as_file, reqd_asns):
     
-    resp_addrs_ip_to_as_file = sys.argv[2]
-
     populate_ip_to_as(resp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
     # resp_addrs = isipinged_addrs_ip_to_as.viewkeys() # viewkeys() is a pointer to the dict's keys; if we update the dict later, it will correspondingly update the keys as well. We need a static snapshot of the keys in isipinged_addrs_ip_to_as at this moment.
     resp_addrs = set()
     for addr in isipinged_addrs_ip_to_as:
         resp_addrs.add(addr)
 
-    unresp_addrs_ip_to_as_file = sys.argv[3]
     populate_ip_to_as(unresp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
     all_addrs = isipinged_addrs_ip_to_as.viewkeys()
 
@@ -409,6 +421,7 @@ if mode == 'zeus' or mode == 'zeus-givenip2as':
     pinged_ip_to_as = {}
     pinged_ip_to_usstate = {}
 
+    # TODO: Move sys.argv from inside find_zeus_resp_unresp to here.
     if mode == 'zeus':
         resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='usstates')
     elif mode == 'zeus-givenip2as':
@@ -421,6 +434,7 @@ if mode == 'zeus' or mode == 'zeus-givenip2as':
 # This is the "isi-netacq" approach, where we determine the set of all addresses in an aggregate using Netacuity + pfx2as, instead of using the addresses that had been pinged by ISI    
 elif mode == 'isi-netacq':
     netacq_addrs_ip_to_as = {}
+    # TODO: Move sys.argv from inside find_isinetacq_resp_unresp to here and test.
     resp_addrs, unresp_addrs = find_isinetacq_resp_unresp(netacq_addrs_ip_to_as)
     update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, netacq_addrs_ip_to_as)
     update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, netacq_addrs_ip_to_as)
@@ -429,19 +443,26 @@ elif mode == 'isi-netacq':
 
 elif mode == 'isi-pinged':
 
+    resp_addrs_ip_to_as_file = sys.argv[2]
+    unresp_addrs_ip_to_as_file = sys.argv[3]    
+    aggr = sys.argv[4] # TODO: Think about whether we should statically define aggr depending upon the is_US flag.
+    op_fname = "./data/{0}_isipingedaddrs".format(aggr)
+    pfx2AS_fn = sys.argv[5]
+    netacq_date = sys.argv[6]
+    desired_loc = sys.argv[7]
+    
     # Technique to look into specific ASes that we specify. This run completed in ~45 minutes.
     # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '11272', '209', '33363', '7155', '23089', '6128', '46690'} # Testing
     # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '209', '7155'} # Testing
     # isipinged_addrs_ip_to_as = {}
-    # resp_addrs, unresp_addrs = find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, reqd_asns)
+    # resp_addrs, unresp_addrs = find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, resp_addrs_ip_to_as_file, unresp_addrs_ip_to_as_file, reqd_asns)
 
-    if sys.argv[7] == "US":
-        is_US = True
-    else:
-        is_US = False
-    
-    netacq_date = sys.argv[6]
-    # Load pyipmeta in order to perform county lookups per address
+    # update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
+    # update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
+    rtree = radix.Radix()
+    rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
+
+    # Load pyipmeta in order to perform geo lookups per address
     provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
     ipm = pyipmeta.IpMeta(provider="netacq-edge",
                           provider_config=provider_config_str)
@@ -452,22 +473,14 @@ elif mode == 'isi-pinged':
     idx_to_region_code = {}
     zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_region_fqdn, idx_to_region_name, idx_to_region_code, py_ver=2)
 
-    resp_addrs, unresp_addrs = find_isipinged_resp_unresp(ipm, is_US)
+    if desired_loc == "US":
+        is_US = True
+    else:
+        is_US = False
 
-    aggr = sys.argv[4] # TODO: Think about whether we should statically define aggr depending upon the is_US flag.
-    op_fname = "./data/{0}_isipingedaddrs".format(aggr)
+    update_region_asn_to_status_isipinged(region_asn_to_status["resp"], resp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US=True, ipm=ipm, temp_suf="resp")
+    update_region_asn_to_status_isipinged(region_asn_to_status["unresp"], unresp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US=True, ipm=ipm, temp_suf="unresp")
+
     
-    pfx2AS_fn = sys.argv[5]
-    rtree = radix.Radix()
-    rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
-
-    # U.S states
-    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, rtree=rtree, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name, is_US = True, temp_suf="resp", is_ipid=False)
-    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, rtree=rtree, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name, is_US = True, temp_suf="unresp", is_ipid=False)
-
-    # update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, rtree=rtree, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
-    # update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, rtree=rtree, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
-
-
 write_region_asn_to_status(region_asn_to_status, op_fname)
 
