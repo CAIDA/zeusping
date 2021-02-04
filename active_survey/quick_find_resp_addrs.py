@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-# NOTE: Parts of this script are based off find_timeseries_pts.py
-# 8GB for 75M resp addrs
-
 import sys
 import pyipmeta
 from collections import namedtuple
@@ -478,8 +475,8 @@ elif mode == 'isi-pinged':
     else:
         is_US = False
 
-    update_region_asn_to_status_isipinged(region_asn_to_status["resp"], resp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US=True, ipm=ipm, temp_suf="resp")
-    update_region_asn_to_status_isipinged(region_asn_to_status["unresp"], unresp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US=True, ipm=ipm, temp_suf="unresp")
+    update_region_asn_to_status_isipinged(region_asn_to_status["resp"], resp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US, ipm=ipm, temp_suf="resp")
+    update_region_asn_to_status_isipinged(region_asn_to_status["unresp"], unresp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US, ipm=ipm, temp_suf="unresp")
 
     
 write_region_asn_to_status(region_asn_to_status, op_fname)
