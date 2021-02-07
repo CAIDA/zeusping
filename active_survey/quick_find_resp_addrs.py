@@ -65,7 +65,7 @@ def populate_ip_to_as(ip_to_as_file, ip_to_as, reqd_asns=None, reqd_addrs=None, 
                         if region_name is not None:
                             ip_to_region[addr] = region_name
                         
-    sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(ip_to_as_file, str(datetime.datetime.now() ) ) )                
+    sys.stderr.write("Done reading ip_to_as for {0} at {1}\n".format(ip_to_as_file, str(datetime.datetime.now() ) ) )
 
     
 def obtain_reqdips_from_ip2as_file(ip_to_as_file, aggr_addrs):
@@ -155,6 +155,65 @@ def get_zeus_addrs(addr_filename, annotated_op_fname, ip_to_as, ip_to_usstate):
     return resp_addrs, unresp_addrs
         
 
+def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, addr_filename, netacq_date, ip_to_as_file=None, pfx2as_date=None, usstate_to_reqd_asns_fname=None, fn_mode='usstates'):
+    
+    # Find the region and AS of each pinged address. Since we had previously populated this information, we just need to load the correct files
+    # Among pinged addresses, find who responded and who did not (addr_filename)
+    # Find % responsive per AS
+
+    # Load pinged_ip_to_as and pinged_ip_to_usstate using previously crunched files
+    if fn_mode == 'usstates':
+        usstate_to_reqd_asns = {}
+        populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
+
+        for usstate in usstate_to_reqd_asns:
+            usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_{1}.pfx2as.gz'.format(usstate, pfx2as_date)
+
+            populate_ip_to_as(usstate_ip_to_as_file, pinged_ip_to_as, reqd_asns=usstate_to_reqd_asns[usstate], region_name=usstate, ip_to_region=pinged_ip_to_usstate)
+
+    elif fn_mode == 'givenip2as':
+
+        populate_ip_to_as(ip_to_as_file, pinged_ip_to_as)
+        
+    # Now that pinged_ip_to_asn and pinged_ip_to_usstate are loaded, let's walk through the address filename and identify which addresses responded and which addresses did not.
+    annotated_op_fname = "{0}_annotated".format(addr_filename)
+    resp_addrs, unresp_addrs = get_zeus_addrs(addr_filename, annotated_op_fname, pinged_ip_to_as, pinged_ip_to_usstate)
+
+    return resp_addrs, unresp_addrs, addr_filename
+
+    
+def find_isinetacq_resp_unresp(netacq_addrs_ip_to_as, netacq_addrs_ip_to_as_file, resp_ip_to_as_file):
+    # Find the AS of each potential address that could/should have been pinged in an aggregate  (country-AS, say), according to Netacuity + pfx2AS
+    # Of these potential addresses, find the subset that responded. 
+    # Find % responsive per AS
+
+    populate_ip_to_as(netacq_addrs_ip_to_as_file, netacq_addrs_ip_to_as)
+
+    # Let's get a set that contains all addresses in Netacuity + pfx2as for a given aggregate that we're exploring
+    # netacq_addrs = netacq_addrs_ip_to_as.keys() # NOTE: keys() does not get the values as a set but as a list. But I want to perform set operations. So let's use viewkeys() instead which yields a set-like object.
+    netacq_addrs = netacq_addrs_ip_to_as.viewkeys() 
+
+    resp_ip_to_as = {}
+    # resp_ip_to_region = {}
+    # Let's populate_ip_to_as *only* for the ASes netacq_addrs belong to
+    # NOTE: The scheme to populate_ip_to_as for *ASes where netacq_addrs belong* was not 100% accurate. Turned out that addresses belonging to an AS can sometimes geolocate to different countries (some addresses in AS58224 did not geolocate to Iran, geolocating instead to UAE and a handful of addresses in AS43754 geolocated to Brazil of all places). Thus, a more accurate version is to only identify responsive_addresses that are a strict subset of netacq_addrs.
+    # reqd_asns = set(netacq_addrs_ip_to_as.viewvalues() )
+    # populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_asns=reqd_asns)
+    # populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_addrs=netacq_addrs)
+    # resp_addrs = resp_ip_to_as.viewkeys()
+    resp_addrs = obtain_reqdips_from_ip2as_file(resp_ip_to_as_file, netacq_addrs)
+
+    unresp_addrs = netacq_addrs - resp_addrs
+
+    # print len(netacq_addrs)
+    # print len(resp_addrs)
+    # print len(unresp_addrs)
+
+    # ip_to_as = netacq_addrs_ip_to_as # update_region_asn_to_status() requires a variable called ip_to_as
+
+    return resp_addrs, unresp_addrs
+
+
 def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_to_region=None, rtree=None, must_find_region=False, ipm=None, idx_to_region_name=None, is_US=False, temp_suf=None, is_ipid=False):
 
     for addr in addrs:
@@ -219,101 +278,22 @@ def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_t
         # region_asn_to_status[region][asn].add(addr)
 
         
-def write_region_asn_to_status(region_asn_to_status, op_fname):
-    op_fp = open(op_fname, "w")
-    # temp_test_fp = open("temp_testing_allasns_verbose", "w")
+def find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, resp_addrs_ip_to_as_file, unresp_addrs_ip_to_as_file, reqd_asns):
     
-    for region in region_asn_to_status["resp"]:
-        for asn in region_asn_to_status["resp"][region]:
+    populate_ip_to_as(resp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
+    # resp_addrs = isipinged_addrs_ip_to_as.viewkeys() # viewkeys() is a pointer to the dict's keys; if we update the dict later, it will correspondingly update the keys as well. We need a static snapshot of the keys in isipinged_addrs_ip_to_as at this moment.
+    resp_addrs = set()
+    for addr in isipinged_addrs_ip_to_as:
+        resp_addrs.add(addr)
 
-            # for addr in region_asn_to_status["resp"][region][asn]:
-            #     temp_test_fp.write("{0} {1} {2} R\n".format(region, asn, addr) )
+    populate_ip_to_as(unresp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
+    all_addrs = isipinged_addrs_ip_to_as.viewkeys()
 
-            tot_resp = region_asn_to_status["resp"][region][asn]
-            # tot_resp = len(region_asn_to_status["resp"][region][asn])
-            
-            tot_unresp = 0
-            if region in region_asn_to_status["unresp"]:
-                if asn in region_asn_to_status["unresp"][region]:
-
-                    # for addr in region_asn_to_status["unresp"][region][asn]:
-                    #     temp_test_fp.write("{0} {1} {2} U\n".format(region, asn, addr) )
-                    
-                    tot_unresp = region_asn_to_status["unresp"][region][asn]
-                    # tot_unresp = len(region_asn_to_status["unresp"][region][asn])
-
-            resp_pct = (tot_resp/float(tot_resp + tot_unresp)) * 100.0
-
-            op_fp.write("{0}|{1}|{2}|{3}|{4}|{5:.4f}\n".format(region, asn, tot_resp, tot_unresp, (tot_resp + tot_unresp), resp_pct) )
-
-            
-def find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='usstates'):
-    
-    # Find the region and AS of each pinged address. Since we had previously populated this information, we just need to load the correct files
-    # Among pinged addresses, find who responded and who did not (addr_filename)
-    # Find % responsive per AS
-
-    addr_filename = sys.argv[2]
-    netacq_date = sys.argv[3]
-
-    # Load pinged_ip_to_as and pinged_ip_to_usstate using previously crunched files
-    if fn_mode == 'usstates':
-        pfx2as_date = sys.argv[4]
-        usstate_to_reqd_asns_fname = sys.argv[5]
-        usstate_to_reqd_asns = {}
-        populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
-
-        for usstate in usstate_to_reqd_asns:
-            usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_{1}.pfx2as.gz'.format(usstate, pfx2as_date)
-
-            populate_ip_to_as(usstate_ip_to_as_file, pinged_ip_to_as, reqd_asns=usstate_to_reqd_asns[usstate], region_name=usstate, ip_to_region=pinged_ip_to_usstate)
-
-    elif fn_mode == 'givenip2as':
-        ip_to_as_file = sys.argv[4]
-        populate_ip_to_as(ip_to_as_file, pinged_ip_to_as)
-        
-    # Now that pinged_ip_to_asn and pinged_ip_to_usstate are loaded, let's walk through the address filename and identify which addresses responded and which addresses did not.
-    annotated_op_fname = "{0}_annotated".format(addr_filename)
-    resp_addrs, unresp_addrs = get_zeus_addrs(addr_filename, annotated_op_fname, pinged_ip_to_as, pinged_ip_to_usstate)
-
-    return resp_addrs, unresp_addrs, addr_filename
-
-    
-def find_isinetacq_resp_unresp(netacq_addrs_ip_to_as):
-    # Find the AS of each potential address that could/should have been pinged in an aggregate  (country-AS, say), according to Netacuity + pfx2AS
-    # Of these potential addresses, find the subset that responded. 
-    # Find % responsive per AS
-    
-    netacq_addrs_ip_to_as_file = sys.argv[2]
-
-    populate_ip_to_as(netacq_addrs_ip_to_as_file, netacq_addrs_ip_to_as)
-
-    # Let's get a set that contains all addresses in Netacuity + pfx2as for a given aggregate that we're exploring
-    # netacq_addrs = netacq_addrs_ip_to_as.keys() # NOTE: keys() does not get the values as a set but as a list. But I want to perform set operations. So let's use viewkeys() instead which yields a set-like object.
-    netacq_addrs = netacq_addrs_ip_to_as.viewkeys() 
-    
-    resp_ip_to_as_file = sys.argv[3]
-    resp_ip_to_as = {}
-    # resp_ip_to_region = {}
-    # Let's populate_ip_to_as *only* for the ASes netacq_addrs belong to
-    # NOTE: The scheme to populate_ip_to_as for *ASes where netacq_addrs belong* was not 100% accurate. Turned out that addresses belonging to an AS can sometimes geolocate to different countries (some addresses in AS58224 did not geolocate to Iran, geolocating instead to UAE and a handful of addresses in AS43754 geolocated to Brazil of all places). Thus, a more accurate version is to only identify responsive_addresses that are a strict subset of netacq_addrs.
-    # reqd_asns = set(netacq_addrs_ip_to_as.viewvalues() )
-    # populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_asns=reqd_asns)
-    # populate_ip_to_as(resp_ip_to_as_file, resp_ip_to_as, reqd_addrs=netacq_addrs)
-    # resp_addrs = resp_ip_to_as.viewkeys()
-    resp_addrs = obtain_reqdips_from_ip2as_file(resp_ip_to_as_file, netacq_addrs)
-
-    unresp_addrs = netacq_addrs - resp_addrs
-
-    # print len(netacq_addrs)
-    # print len(resp_addrs)
-    # print len(unresp_addrs)
-
-    # ip_to_as = netacq_addrs_ip_to_as # update_region_asn_to_status() requires a variable called ip_to_as
+    unresp_addrs = all_addrs - resp_addrs
 
     return resp_addrs, unresp_addrs
 
-
+    
 def update_region_asn_to_status_isipinged(region_asn_to_status, addrs_ip_to_as_file, idx_to_region_name, rtree, is_US=False, ipm=None, temp_suf=None):
 
     # temp_fp = open('/scratch/zeusping/data/quick_census/isi/temp_annotated_{0}'.format(temp_suf), 'w')
@@ -394,61 +374,86 @@ def update_region_asn_to_status_isipinged(region_asn_to_status, addrs_ip_to_as_f
                 # temp_fp.write("{0}|{1}|{2}\n".format(addr, region, asn) )
 
     
-def find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, resp_addrs_ip_to_as_file, unresp_addrs_ip_to_as_file, reqd_asns):
+def write_region_asn_to_status(region_asn_to_status, op_fname):
+    op_fp = open(op_fname, "w")
+    # temp_test_fp = open("temp_testing_allasns_verbose", "w")
     
-    populate_ip_to_as(resp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
-    # resp_addrs = isipinged_addrs_ip_to_as.viewkeys() # viewkeys() is a pointer to the dict's keys; if we update the dict later, it will correspondingly update the keys as well. We need a static snapshot of the keys in isipinged_addrs_ip_to_as at this moment.
-    resp_addrs = set()
-    for addr in isipinged_addrs_ip_to_as:
-        resp_addrs.add(addr)
+    for region in region_asn_to_status["resp"]:
+        for asn in region_asn_to_status["resp"][region]:
 
-    populate_ip_to_as(unresp_addrs_ip_to_as_file, isipinged_addrs_ip_to_as, reqd_asns=reqd_asns)
-    all_addrs = isipinged_addrs_ip_to_as.viewkeys()
+            # for addr in region_asn_to_status["resp"][region][asn]:
+            #     temp_test_fp.write("{0} {1} {2} R\n".format(region, asn, addr) )
 
-    unresp_addrs = all_addrs - resp_addrs
+            tot_resp = region_asn_to_status["resp"][region][asn]
+            # tot_resp = len(region_asn_to_status["resp"][region][asn])
+            
+            tot_unresp = 0
+            if region in region_asn_to_status["unresp"]:
+                if asn in region_asn_to_status["unresp"][region]:
 
-    return resp_addrs, unresp_addrs
+                    # for addr in region_asn_to_status["unresp"][region][asn]:
+                    #     temp_test_fp.write("{0} {1} {2} U\n".format(region, asn, addr) )
+                    
+                    tot_unresp = region_asn_to_status["unresp"][region][asn]
+                    # tot_unresp = len(region_asn_to_status["unresp"][region][asn])
 
-    
+            resp_pct = (tot_resp/float(tot_resp + tot_unresp)) * 100.0
+
+            op_fp.write("{0}|{1}|{2}|{3}|{4}|{5:.4f}\n".format(region, asn, tot_resp, tot_unresp, (tot_resp + tot_unresp), resp_pct) )
+
+            
 mode = sys.argv[1] # Mode can be 'isi' for ISI Hitlist, 'zmap' for Zmap scan, 'zeus' for ZeusPing            
 region_asn_to_status = {"resp" : {}, "unresp" : {}}
 
-# NOTE: I've assumed that we've already found the AS of each address using ipmeta-lookup
 if mode == 'zeus' or mode == 'zeus-givenip2as':
+
+    addr_filename = sys.argv[2]
+    netacq_date = sys.argv[3]
+
+    if mode == 'zeus':
+        pfx2as_date = sys.argv[4]
+        usstate_to_reqd_asns_fname = sys.argv[5]
+
+    elif mode == 'zeus-givenip2as':
+        ip_to_as_file = sys.argv[4]
+        
+    # NOTE: I've assumed that we've already found the AS of each address using ipmeta-lookup
     pinged_ip_to_as = {}
     pinged_ip_to_usstate = {}
 
-    # TODO: Move sys.argv from inside find_zeus_resp_unresp to here.
     if mode == 'zeus':
-        resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='usstates')
+        resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, addr_filename, netacq_date, pfx2as_date=pfx2as_date, usstate_to_reqd_asns_fname=usstate_to_reqd_asns_fname, fn_mode='usstates')
     elif mode == 'zeus-givenip2as':
         # This mode is when we provide the ip2as file for all ips in addr_filename in a single file specified as a command-line argument
-        resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, fn_mode='givenip2as')
-    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
-    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, pinged_ip_to_as, pinged_ip_to_usstate)
+        resp_addrs, unresp_addrs, addr_filename = find_zeus_resp_unresp(pinged_ip_to_as, pinged_ip_to_usstate, addr_filename, netacq_date, ip_to_as_file=ip_to_as_file, fn_mode='givenip2as')
+    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, ip_to_as=pinged_ip_to_as, ip_to_region=pinged_ip_to_usstate)
+    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, ip_to_as=pinged_ip_to_as, ip_to_region=pinged_ip_to_usstate)
     op_fname = "{0}_regionasn_to_status".format(addr_filename)
     
 # This is the "isi-netacq" approach, where we determine the set of all addresses in an aggregate using Netacuity + pfx2as, instead of using the addresses that had been pinged by ISI    
 elif mode == 'isi-netacq':
     netacq_addrs_ip_to_as = {}
-    # TODO: Move sys.argv from inside find_isinetacq_resp_unresp to here and test.
-    resp_addrs, unresp_addrs = find_isinetacq_resp_unresp(netacq_addrs_ip_to_as)
-    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, netacq_addrs_ip_to_as)
-    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, netacq_addrs_ip_to_as)
+    netacq_addrs_ip_to_as_file = sys.argv[2]
+    resp_ip_to_as_file = sys.argv[3]
     aggr = sys.argv[4]
+    resp_addrs, unresp_addrs = find_isinetacq_resp_unresp(netacq_addrs_ip_to_as, netacq_addrs_ip_to_as_file, resp_ip_to_as_file)
+    update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, ip_to_as=netacq_addrs_ip_to_as)
+    update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, ip_to_as=netacq_addrs_ip_to_as)
     op_fname = "./data/{0}_isinetacqaddrs".format(aggr)
 
+    
 elif mode == 'isi-pinged':
 
     resp_addrs_ip_to_as_file = sys.argv[2]
     unresp_addrs_ip_to_as_file = sys.argv[3]    
-    aggr = sys.argv[4] # TODO: Think about whether we should statically define aggr depending upon the is_US flag.
-    op_fname = "./data/{0}_isipingedaddrs".format(aggr)
+    aggr = sys.argv[4]
+
     pfx2AS_fn = sys.argv[5]
     netacq_date = sys.argv[6]
     desired_loc = sys.argv[7]
     
     # Technique to look into specific ASes that we specify. This run completed in ~45 minutes.
+    # TODO: Check if the specific-ASes code runs now
     # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '11272', '209', '33363', '7155', '23089', '6128', '46690'} # Testing
     # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '209', '7155'} # Testing
     # isipinged_addrs_ip_to_as = {}
@@ -477,6 +482,8 @@ elif mode == 'isi-pinged':
 
     update_region_asn_to_status_isipinged(region_asn_to_status["resp"], resp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US, ipm=ipm, temp_suf="resp")
     update_region_asn_to_status_isipinged(region_asn_to_status["unresp"], unresp_addrs_ip_to_as_file, idx_to_region_name, rtree, is_US, ipm=ipm, temp_suf="unresp")
+    
+    op_fname = "./data/{0}_isipingedaddrs".format(aggr)
 
     
 write_region_asn_to_status(region_asn_to_status, op_fname)
