@@ -8,13 +8,18 @@ import datetime
 # loc_to_reqd_asns contains a manual mapping of the ASes that we believe are large residential providers in different areas
 # We obtained "likely residential" ASes by finding the ASes with the most addresses in the area and  then checking which of these are "known residential" using Wikipedia and the web in general.
 
-known_residential_asns = ['7922', '209', '7029', '5650', '20115', '7018', '22773', '701', '13977', '33363', '7155']
+# known_residential_asns = ['7922', '209', '7029', '5650', '20115', '7018', '22773', '701', '13977', '33363', '7155']
 
 loc_to_reqd_asns_fname = sys.argv[1]
 op_fname_pref = sys.argv[2]
 num_splits = int(sys.argv[3]) # Number of files into which we should split the addresses
 asn_to_addrs_path = sys.argv[4]
 pfx2as_suf = sys.argv[5]
+
+is_US = True
+
+if len(sys.argv) == 7:
+    is_US = False
 
 mkdir_cmd = 'mkdir -p ./data/{0}'.format(op_fname_pref)
 sys.stderr.write("{0}\n".format(mkdir_cmd) )
@@ -59,8 +64,11 @@ for line in loc_to_reqd_asns_fp:
         st_asn_to_sampling_factor[state][asns_reqd_splits_parts[0]] = int(asns_reqd_splits_parts[1])
 
     # print st_asn_to_sampling_factor
-        
-    st_fname = "{0}/{1}_addrs/all_{1}_addresses{2}.pfx2as.gz".format(asn_to_addrs_path, state, pfx2as_suf)
+
+    if is_US == True:
+        st_fname = "{0}/{1}_addrs/all_{1}_addresses{2}.pfx2as.gz".format(asn_to_addrs_path, state, pfx2as_suf)
+    else:
+        st_fname = parts[2].strip()
     st_fp = wandio.open(st_fname)
 
     st_line_ct = 0

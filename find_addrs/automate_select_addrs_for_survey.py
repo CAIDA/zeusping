@@ -10,7 +10,7 @@ import calendar
 
 def find_pfx2as_fname():
     today_dt = datetime.datetime.today()
-    yday_dt = today_dt - timedelta(days = 1)
+    yday_dt = today_dt - timedelta(days = 2)
     yday_day = yday_dt.strftime("%d") # Note: we need 0-padding
     yday_month = yday_dt.strftime("%m") # Note: we need 0-padding
     yday_year = yday_dt.strftime("%Y")
