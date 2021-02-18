@@ -58,8 +58,9 @@ def setup_stuff():
     op_log_fp.write("\nStarted reading files at: {0}\n".format(str(datetime.datetime.now() ) ) )
 
     vp_to_vpnum_fp = open('{0}/{1}_to_{2}/vp_to_vpnum.log'.format(processed_op_dir, round_tstart, round_tend), 'w')
+    vp_to_resps_fp = open('{0}/{1}_to_{2}/vp_to_resps.log'.format(processed_op_dir, round_tstart, round_tend), 'w')
 
-    return op_log_fp, vp_to_vpnum_fp
+    return op_log_fp, vp_to_vpnum_fp, vp_to_resps_fp
 
 @profile
 def find_potential_files():
@@ -96,7 +97,7 @@ def find_potential_files():
     return potential_files
 
 @profile        
-def update_addr_to_resps(fname, addr_to_resps, vpnum):
+def update_addr_to_resps(fname, addr_to_resps, vpnum, vp, vp_to_resps_fp):
 
     wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
     sys.stderr.write("{0}\n".format(wandiocat_cmd) )
@@ -136,6 +137,9 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
     line_ct = 0
     mask = 1<<vpnum
 
+    # Keep track of response statistics for this VP
+    vp_to_resps = array.array('L', [0, 0, 0, 0, 0])
+
     # ping_lines = proc.communicate()[0]
     # for line in ping_lines.split('\n'):
     # while True:
@@ -171,6 +175,7 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
 
             # Don't increment. Bit shift to vp_num position and set bit to 1
             addr_to_resps[dstipid][0] |= (mask)  # 0th index is sent packets
+            vp_to_resps[0] += 1
 
             # pinged_ts = data['start']['sec']
 
@@ -184,22 +189,27 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum):
                 if icmp_type == 0 and icmp_code == 0:
                     # Responded to the ping and response is indicative of working connectivity
                     addr_to_resps[dstipid][1] |= (mask) # 1st index is successful ping response
+                    vp_to_resps[1] += 1
                 elif icmp_type == 3 and icmp_code == 1:
                     # Destination host unreachable
                     addr_to_resps[dstipid][2] |= (mask) # 2nd index is Destination host unreachable
+                    vp_to_resps[2] += 1
                 else:
                     addr_to_resps[dstipid][3] |= (mask) # 3rd index is the rest of icmp stuff. So mostly errors.
-
+                    vp_to_resps[3] += 1
             else:
 
                 addr_to_resps[dstipid][4] |= (mask) # 4th index is lost ping
-
+                vp_to_resps[4] += 1
             
     proc.wait() # Wait for the subprocess to exit
 
     # remaining_ping_lines = proc.communicate()[0]
     # for line in remaining_ping_lines.splitlines():
     #     line_ct += 1
+
+    # Update vp_to_resps
+    vp_to_resps_fp.write("{0} {1} {2} {3} {4} {5} {6}\n".format(vp, vpnum, vp_to_resps[0], vp_to_resps[1], vp_to_resps[2], vp_to_resps[3], vp_to_resps[4]) )
 
 
 def readwarts_update_addr_to_resps(fname, addr_to_resps, vpnum):
@@ -288,7 +298,6 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             ping_aggrs_fp = open(op_fname, 'wb')
 
             for dst in sorted(addr_to_resps):
-                # TODO: Move ipid calculation to read_resps_per_addr, so that we don't need to store long ip address strings in memory
                 ping_aggrs_fp.write(struct_fmt.pack(dst, *(addr_to_resps[dst]) ) )
 
             ping_aggrs_fp.close()
@@ -357,7 +366,7 @@ def main():
                 # We found a warts file that belongs to this round and needs to be processed
 
                 if is_setup_done == 0:
-                    op_log_fp, vp_to_vpnum_fp = setup_stuff()
+                    op_log_fp, vp_to_vpnum_fp, vp_to_resps_fp = setup_stuff()
                     is_setup_done = 1
 
                 fname_suf = (fname.strip().split('/'))[-1]
@@ -372,7 +381,7 @@ def main():
                     vp_to_vpnum_fp.write("{0} {1}\n".format(vp, vpnum) )
                     vpnum += 1
 
-                update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp])
+                update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp], vp, vp_to_resps_fp)
                 # readwarts_update_addr_to_resps(fname, addr_to_resps, vp_to_vpnum[vp]) # Unfortunately, this function was woefully slow, so reverting to reading the output of sc_warts2json
 
                 op_log_fp.write("Done reading {0} at: {1}\n".format(fname, str(datetime.datetime.now() ) ) )
@@ -382,6 +391,7 @@ def main():
 
     op_log_fp.close()
     vp_to_vpnum_fp.close()
+    vp_to_resps_fp.close()
 
 
 ############## Read command line args and call main() #####################
