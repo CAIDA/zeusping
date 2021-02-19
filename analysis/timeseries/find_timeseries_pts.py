@@ -8,6 +8,12 @@
 # TODO: Modularize this code and make it nicer
 # TODO: Have the state name be part of resp_dropout_per_round_{0}.format(county)
 
+# First, we get idx_to_county
+# Next, we try to populate which locations and which ASNs we need in each location. This helps us to populate ip_to_as using existing ip_to_as files but without using too much memory (we don't need ip_to_as for non-residential ASNs in those locs, such as Google in CA).
+# usstate_to_reqd_asns is a set(). usstate_to_reqd_asns['CA'] = set(22773, 7922, 20001)
+# We will then get ip_to_as, ip_to_county, ip_to_state.
+# Read each 10-minute round file containing dropout, resp, antidropouts. For each IP, find state, county, asn. Then update the dict for each of these aggregates.
+
 import sys
 import pyipmeta
 from collections import namedtuple
@@ -26,26 +32,28 @@ def write_to_file(this_t, key_to_status, fps, isasn = False):
         if key not in fps:
             if isasn == False:
                 if must_append == 0:
-                    if IS_INPUT_COMPRESSED == 0:
+                    if IS_OUTPUT_COMPRESSED == 0:
                         fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "w")
                     else:
                         fps[key] = wandio.open("{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, key), "w")
                 else:
-                    if IS_INPUT_COMPRESSED == 0:
+                    if IS_OUTPUT_COMPRESSED == 0:
                         fps[key] = open("{0}/resp_dropout_per_round_{1}".format(inp_dir, key), "a")
                     else:
+                        # NOTE: Looks like wandio does not support open in 'append' mode
                         fps[key] = wandio.open("{0}/resp_dropout_per_round_{1}.gz".format(inp_dir, key), "a")
             else:
                 # fps[key] = wandio.open("{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, key), "w")
                 if must_append == 0:
-                    if IS_INPUT_COMPRESSED == 0:
+                    if IS_OUTPUT_COMPRESSED == 0:
                         fps[key] = open("{0}/resp_dropout_per_round_AS{1}".format(inp_dir, key), "w")
                     else:
                         fps[key] = wandio.open("{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, key), "w")
                 else:
-                    if IS_INPUT_COMPRESSED == 0:
+                    if IS_OUTPUT_COMPRESSED == 0:
                         fps[key] = open("{0}/resp_dropout_per_round_AS{1}".format(inp_dir, key), "a")
                     else:
+                        # NOTE: Looks like wandio does not support open in 'append' mode
                         fps[key] = wandio.open("{0}/resp_dropout_per_round_AS{1}.gz".format(inp_dir, key), "a")
                     
         this_d = key_to_status[key]
@@ -58,7 +66,8 @@ def write_to_file(this_t, key_to_status, fps, isasn = False):
         
     
 test = 1
-IS_INPUT_COMPRESSED = 0
+IS_INPUT_COMPRESSED = 1
+IS_OUTPUT_COMPRESSED = 0
 is_old_CO = 0 # For processing our first experiment on CO
 
 tstart = int(sys.argv[1])
@@ -239,17 +248,20 @@ for this_t in range(tstart, tend, 600):
     if is_old_CO == 1:
         this_fname = "{0}/{1}_to_{2}/dropout_resp_antidropout_addrs.gz".format(inp_dir, this_t, this_t + 600)
     else:
-        this_fname = "{0}/{1}_to_{2}".format(inp_dir, this_t, this_t + 600)
+        if IS_INPUT_COMPRESSED == 1:
+            this_fname = "{0}/{1}_to_{2}.gz".format(inp_dir, this_t, this_t + 600)
+        else:
+            this_fname = "{0}/{1}_to_{2}".format(inp_dir, this_t, this_t + 600)
     sys.stderr.write("Processing {0} at {1}\n".format(this_fname, str(datetime.datetime.now() ) ) )
 
     try:
         if is_old_CO == 1:
             this_fp = wandio.open(this_fname, "r")
         else:
-            if IS_INPUT_COMPRESSED == 0:
-                this_fp = open(this_fname, "r")
-            else:
+            if IS_INPUT_COMPRESSED == 1:
                 this_fp = wandio.open(this_fname, "r")
+            else:
+                this_fp = open(this_fname, "r")
     except:
         # Sometimes, we have missing data for some 10-minute rounds. Handle it.
         continue
