@@ -5,6 +5,8 @@ import sys
 import radix
 import re
 import os
+import struct
+import socket
 
 
 class FileEmptyError(Exception):
@@ -54,6 +56,18 @@ def load_radix_tree(pfx2AS_fn, rtree):
 
     proc.wait() # Wait for the subprocess to exit            
         
+
+def ipint_to_ipstr(ipint):
+    return socket.inet_ntoa(struct.pack("!I", ipint))
+
+
+def ipstr_to_ipint(ipstr):
+    try:
+        ipint = struct.unpack("!I", socket.inet_aton(ipstr))[0]
+    except socket.error:
+        ipint = -1
+    return ipint
+    
 
 def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code, ctry_code_to_fqdn=None, py_ver=3):
     read_cmd = 'zcat {0}'.format(loc_fname)
