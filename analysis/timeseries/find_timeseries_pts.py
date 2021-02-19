@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
-# TODO: Be consistent with wandio
 # NOTE: I've changed the output format of addr_to_dropouts_detailed, so whichever files use it need to be modified appropriately
 # NOTE: Let us not update asn_to_status anymore. Since we are probing many states and the same AS may repeat acorss states, let the Explorer compose aggregate AS statistics. We will stick to updating state-ASN and county-ASN statistics.
-# TODO: Experiment without flush(). See how much our efficiency improves.
-# TODO: Also change find_timeseries_pts_per_ctry.py to reflect these changes
 # TODO: Modularize this code and make it nicer
 # TODO: Have the state name be part of resp_dropout_per_round_{0}.format(county)
 
-# First, we get idx_to_county
+# First, we get idx_to_county (idx is the county's idx in IODA)
 # Next, we try to populate which locations and which ASNs we need in each location. This helps us to populate ip_to_as using existing ip_to_as files but without using too much memory (we don't need ip_to_as for non-residential ASNs in those locs, such as Google in CA).
 # usstate_to_reqd_asns is a set(). usstate_to_reqd_asns['CA'] = set(22773, 7922, 20001)
 # We will then get ip_to_as, ip_to_county, ip_to_state.
@@ -66,6 +63,7 @@ def write_to_file(this_t, key_to_status, fps, isasn = False):
         
     
 test = 1
+# TODO: Introduce py_ver variable and set IS_*_COMPRESSED based upon py_ver
 IS_INPUT_COMPRESSED = 1
 IS_OUTPUT_COMPRESSED = 0
 is_old_CO = 0 # For processing our first experiment on CO
@@ -90,6 +88,7 @@ ipm = pyipmeta.IpMeta(provider="netacq-edge",
                       provider_config=provider_config_str)
 
 
+# TODO: Write and use zeusping_helpers.load_countyidx_to_dicts
 # IODA uses a mapping of an integer to a county-name. Load that mapping. We use this mapping to produce an "annotated" version of the addr_to_dropouts file
 idx_to_county = {}
 # Populate idx_to_county
@@ -137,6 +136,7 @@ else:
 print usstate_to_reqd_asns
 # sys.exit(1)
 
+# TODO: Modularize the following and obtain populate_ip_to_as(). Make it Python 3 compatible.
 ip_to_as = {}
 ip_to_usstate = {}
 for usstate in usstate_to_reqd_asns:
@@ -180,6 +180,7 @@ for usstate in usstate_to_reqd_asns:
 
 # reqd_ips = set()
 
+# TODO: Get ip_to_loc instead of ip_to_county. ip_to_loc will contain both the state_code and the county_code
 # Let's get ip to county mappings for the IP addresses that we pinged in each U.S. state    
 ip_to_county = {}
 
@@ -224,7 +225,8 @@ for line in inp_ips_fp:
                 county_name = idx_to_county[(county_id)]
                 
     ip_to_county[ip] = county_id
-    
+
+    # TODO: Write annotated_fp with | as the separator. 
     annotated_fp.write("{0} {1} {2} {3} {4}\n".format(line[:-1], usstate, asn, county_id, county_name) )
         
     # reqd_ips.add(ip)
@@ -262,7 +264,7 @@ for this_t in range(tstart, tend, 600):
                 this_fp = wandio.open(this_fname, "r")
             else:
                 this_fp = open(this_fname, "r")
-    except:
+    except IOError:
         # Sometimes, we have missing data for some 10-minute rounds. Handle it.
         continue
 
@@ -284,6 +286,7 @@ for this_t in range(tstart, tend, 600):
 
         status = int(parts[1].strip() )
 
+        # TODO: Use ip_to_loc instead of ip_to_usstate and ip_to_county
         # Assign default value if key is not present
         usstate = ip_to_usstate.get(addr, "-1")
         asn = ip_to_as.get(addr, "UNK")
@@ -322,7 +325,7 @@ for this_t in range(tstart, tend, 600):
             if this_t >= test_tstart and this_t <= test_tend:            
                 test_fp.write("{0} {1} {2} {3}\n".format(line[:-1], usstate, county, asn) )
 
-
+    # TODO: Replace the following code with write_loc_asn_to_file so that we can reuse the function for writing county_asn files as well
     for usstate in usstate_asn_to_status:
         if usstate not in usstate_asn_fps:
             usstate_asn_fps[usstate] = {}
@@ -353,7 +356,7 @@ for this_t in range(tstart, tend, 600):
             # update_aggregate_details(asn_to_status[asn], n_r, n_n, n_d)
 
     write_to_file(this_t, usstate_to_status, usstate_fps)
-    # write_to_file(this_t, asn_to_status, asn_fps, isasn=True)
+    # write_to_file(this_t, asn_to_status, asn_fps, isasn=True) # Unlike find_timeseries_per_ctry_pts.py where we can assume to some extent that an AS geolocates to a single country, we cannot assume here that an AS in the US geolocates to a single state. So there is no point in writing the asn_to_status files; see comment at the start of the file.
                 
     for county in county_asn_to_status:
 
