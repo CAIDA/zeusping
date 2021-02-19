@@ -1,9 +1,61 @@
 
 import shlex
 import subprocess
+import sys
+import radix
+import re
+import os
 
 
-def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code, ctry_code_to_fqdn=None):
+class FileEmptyError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return self.value
+
+
+def load_radix_tree(pfx2AS_fn, rtree):
+    # try:
+    #     if os.stat(pfx2AS_fn).st_size == 0:
+    #         raise FileEmptyError('file is empty')
+    #     sys.stderr.write('reading pfx2AS file {0}\n'.format(pfx2AS_fn) )
+
+    #     pfx2AS_fp = open(pfx2AS_fn,'r')
+    # except OSError as o:
+    #     sys.stderr.write('pfx2AS file error: {0}\n'.format(o))
+    #     sys.exit(1)
+    # except FileEmptyError as f:
+    #     sys.stderr.write('pfx2AS file error: {0}\n'.format(f))
+    #     no_pfx2asfile=1
+    #     sys.exit(1)
+    # except IOError as i:
+    #     sys.stderr.write('File open failed: {0}\n'.format(i) )
+    #     sys.exit(1)
+    
+    if os.stat(pfx2AS_fn).st_size == 0:
+        raise FileEmptyError('file is empty')
+    sys.stderr.write('reading pfx2AS file {0}\n'.format(pfx2AS_fn) )
+
+    try:
+        zcat_cmd = "zcat {0}".format(pfx2AS_fn)
+        sys.stderr.write("{0}\n".format(zcat_cmd) )
+        proc = subprocess.Popen(zcat_cmd, stdout=subprocess.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+    except:
+        sys.stderr.write("zcat failed for {0}; exiting\n".format(zcat_cmd) )
+        sys.exit(1)
+
+    with proc.stdout:
+        for line in iter(proc.stdout.readline, b''):        
+            if re.match(r'#', line): continue
+            fields = line.strip().split()
+            if len(fields) != 3: continue
+            rnode = rtree.add(fields[0]+'/'+fields[1])
+            rnode.data["origin"] = fields[2]
+
+    proc.wait() # Wait for the subprocess to exit            
+        
+
+def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code, ctry_code_to_fqdn=None, py_ver=3):
     read_cmd = 'zcat {0}'.format(loc_fname)
     args = shlex.split(read_cmd)
 
@@ -14,7 +66,10 @@ def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_co
 
     with proc.stdout:
         for line in iter(proc.stdout.readline, b''):
-            parts = line.decode().strip().split(',')
+            if py_ver == 3:
+                parts = line.decode().strip().split(',')
+            elif py_ver == 2:
+                parts = line.strip().split(',')
             idx = parts[0].strip()
             fqdn = parts[1].strip()
             idx_to_loc_fqdn[idx] = fqdn
@@ -25,4 +80,5 @@ def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_co
 
             if ctry_code_to_fqdn is not None:
                 ctry_code_to_fqdn[loc_code] = fqdn
+
 
