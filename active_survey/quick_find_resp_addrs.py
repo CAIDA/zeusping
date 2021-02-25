@@ -224,7 +224,7 @@ def update_region_asn_to_status(region_asn_to_status, addrs, ip_to_as=None, ip_t
             # efficient memory usage, obtain the ip_str from the
             # addr. We need the ip_str for finding the ip's region and
             # the ip's AS.
-            addr_str = socket.inet_ntoa(struct.pack('!L', addr))
+            addr_str = zeusping_helpers.ipint_to_ipstr(addr)
             addr = addr_str
 
         region = '-1'
@@ -448,19 +448,33 @@ elif mode == 'isi-pinged':
     unresp_addrs_ip_to_as_file = sys.argv[3]    
     aggr = sys.argv[4]
 
-    pfx2AS_fn = sys.argv[5]
-    netacq_date = sys.argv[6]
-    desired_loc = sys.argv[7]
+    # Technique to look into specific ASes that we specify. This run completed in ~50 minutes.
+    # netacq_date = sys.argv[5]
+
+    # # Load pyipmeta in order to perform geo lookups per address
+    # provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+    # ipm = pyipmeta.IpMeta(provider="netacq-edge",
+    #                       provider_config=provider_config_str)
+
+    # regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+    # idx_to_region_name = {}
+    # idx_to_region_fqdn = {}
+    # idx_to_region_code = {}
+    # zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_region_fqdn, idx_to_region_name, idx_to_region_code, py_ver=2)
     
-    # Technique to look into specific ASes that we specify. This run completed in ~45 minutes.
-    # TODO: Check if the specific-ASes code runs now
-    # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '11272', '209', '33363', '7155', '23089', '6128', '46690'} # Testing
+    # # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '11272', '209', '33363', '7155', '23089', '6128', '46690'} # Testing
     # reqd_asns = {'7018', '5650', '20001', '7922', '701', '22773', '20115', '209', '7155'} # Testing
     # isipinged_addrs_ip_to_as = {}
     # resp_addrs, unresp_addrs = find_isipinged_resp_unresp_sampledases(isipinged_addrs_ip_to_as, resp_addrs_ip_to_as_file, unresp_addrs_ip_to_as_file, reqd_asns)
 
-    # update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
-    # update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
+    # update_region_asn_to_status(region_asn_to_status["resp"], resp_addrs, ip_to_as=isipinged_addrs_ip_to_as, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
+    # update_region_asn_to_status(region_asn_to_status["unresp"], unresp_addrs, ip_to_as=isipinged_addrs_ip_to_as, must_find_region=True, ipm = ipm, idx_to_region_name=idx_to_region_name)
+
+    # Technique to look into all ASes (not just sampled ones we specify)
+    pfx2AS_fn = sys.argv[5]
+    netacq_date = sys.argv[6]
+    desired_loc = sys.argv[7]
+    
     rtree = radix.Radix()
     rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
 

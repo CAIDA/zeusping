@@ -7,12 +7,10 @@ import wandio
 import datetime
 
 
-def print_isi_addrs():
+def print_isi_addrs(num_hists):
 
     line_ct = 0
 
-    NUM_HISTS = 2 # How many historical censuses we will consider to determine if an address was respsonsive
-    
     for line in sys.stdin:
 
         line_ct += 1
@@ -31,13 +29,13 @@ def print_isi_addrs():
         ip = parts[1].strip()
 
         hist = parts[2].strip()
-        hist = hist[-1] # NOTE: Hack to make this faster temporarily
+        # hist = hist[-1] # NOTE: Hack to make this faster temporarily
 
         hex_int = int(hist, 16)
 
         resp = 0
 
-        for i in range(NUM_HISTS):
+        for i in range(num_hists):
             if hex_int & 1 == 1:
                 resp = 1
 
@@ -53,6 +51,8 @@ def print_isi_addrs():
 
 resp_fp = open(sys.argv[1], 'w')
 unresp_fp = open(sys.argv[2], 'w')
-print_isi_addrs()
+# num_hists is the number of historical censuses we will consider to determine if an address was respsonsive
+num_hists = int(sys.argv[3])
+print_isi_addrs(num_hists)
     
     
