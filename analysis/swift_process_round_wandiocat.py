@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import sys
 import glob
@@ -12,6 +12,13 @@ import array
 import io
 import struct
 import socket
+import radix
+import gmpy
+import pyipmeta
+
+zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+sys.path.append(zeusping_utils_path + "/utils")
+import zeusping_helpers
 
 if sys.version_info[0] == 2:
     py_ver = 2
@@ -168,11 +175,14 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum, vp, vp_to_resps_fp):
 
             dst = data['dst']
 
-            try:
-                dstipid = struct.unpack("!I", socket.inet_aton(dst))[0]
-            except socket.error:
+            # try:
+            #     dstipid = struct.unpack("!I", socket.inet_aton(dst))[0]
+            # except socket.error:
+            #     continue
+            dstipid = zeusping_helpers.ipstr_to_ipint(dst)
+            if dstipid == -1: # ipstr_to_ipint throws -1 on error
                 continue
-
+            
             # Don't increment. Bit shift to vp_num position and set bit to 1
             addr_to_resps[dstipid][0] |= (mask)  # 0th index is sent packets
             vp_to_resps[0] += 1
@@ -276,33 +286,239 @@ def readwarts_update_addr_to_resps(fname, addr_to_resps, vpnum):
 
     proc.wait() # Wait for the subprocess to exit
     
+
+def write_resps_per_round_ascii(addr_to_resps, processed_op_dir, round_tstart, round_tend):
+    op_fname = '{0}/{1}_to_{2}/resps_per_round_ascii'.format(processed_op_dir, round_tstart, round_tend)
+    ping_aggrs_fp = open(op_fname, 'w')
+    dst_ct = 0
+    for dst in addr_to_resps:
+
+        # Go from ipid to ipstr
+        dstipstr = zeusping_helpers.ipint_to_ipstr(dst)
+
+        # dst_ct += 1 # Since we don't use this variable, let's not update it. We get to save 6 seconds according to kernprof
+        this_d = addr_to_resps[dst]
+        ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dstipstr, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
+
+    ping_aggrs_fp.close()
+
+    return op_fname
+
+
+def write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, round_tend):
+    op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
+    ping_aggrs_fp = open(op_fname, 'wb')
+
+    # TODO: Check if we can initialize these dicts using defaultdicts somehow
+    loc1_asn_to_status = {}
+    loc2_asn_to_status = {}
+
+    # Write to ping_aggrs_fp. Also calculate timeseries vals for various IODA aggregates.
+    for dst in sorted(addr_to_resps):
+        ping_aggrs_fp.write(struct_fmt.pack(dst, *(addr_to_resps[dst]) ) )
+
+        # Go from ipid to ipstr
+        dstipstr = zeusping_helpers.ipint_to_ipstr(dst)
+
+        asn = 'UNK'
+        # Find ip_to_as, ip_to_loc
+        rnode = rtree.search_best(dstipstr)
+        if rnode is None:
+            asn = 'UNK'
+        else:
+            asn = rnode.data["origin"]
+
+        # Let loc1 refer to the first-level location and loc2 refer to the second-level location
+        # In the US, loc1 is state and loc2 is county
+        # In non-US countries, loc1 will be country and loc2 will be region
+        # At this point, we will obtain just the ids of loc1 and loc2. We will use other dictionaries to obtain the name and fqdn
+        loc1 = 'UNKLOC1'
+        loc2 = 'UNKLOC2'
+        res = ipm.lookup(dstipstr)
+
+        if len(res) != 0:
+            ctry_code = res[0]['country_code']
+
+            if is_US is True:
+                # Find US state and county
+                if ctry_code != 'US':
+                    continue
+
+                loc1 = str(res[0]['polygon_ids'][1]) # This is for US state info
+                loc2 = str(res[0]['polygon_ids'][0]) # This is for county info
+
+            else:
+                # Find region
+                loc1 = ctry_code
+                loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
+
+        this_arr = addr_to_resps[dst]
+        # If this address received at least two pings, it was pinged
+        if gmpy.popcount(this_arr[0]) >= 2:
+
+            if loc1 not in loc1_asn_to_status:
+                loc1_asn_to_status[loc1] = {}
+
+            if asn not in loc1_asn_to_status[loc1]:
+                loc1_asn_to_status[loc1][asn] = defaultdict(int)
+
+            if loc2 not in loc2_asn_to_status:
+                loc2_asn_to_status[loc2] ={}
+
+            if asn not in loc2_asn_to_status[loc2]:
+                loc2_asn_to_status[loc2][asn] = defaultdict(int)
+
+            loc1_asn_to_status[loc1][asn]["pinged"] += 1
+            loc2_asn_to_status[loc2][asn]["pinged"] += 1
+
+        # If this address responded to at least one ping, it was responsive
+        if this_arr[1] >= 1:
+
+            if loc1 not in loc1_asn_to_status:
+                loc1_asn_to_status[loc1] = {}
+
+            if asn not in loc1_asn_to_status[loc1]:
+                loc1_asn_to_status[loc1][asn] = defaultdict(int)
+
+            if loc2 not in loc2_asn_to_status:
+                loc2_asn_to_status[loc2] ={}
+
+            if asn not in loc2_asn_to_status[loc2]:
+                loc2_asn_to_status[loc2][asn] = defaultdict(int)
+
+            loc1_asn_to_status[loc1][asn]["resp"] += 1
+            loc2_asn_to_status[loc2][asn]["resp"] += 1
+
+    ping_aggrs_fp.close()
+
+    # Write ts file
+    ts_fname = '{0}/{1}_to_{2}/ts'.format(processed_op_dir, round_tstart, round_tend)
+    ts_fp = open(ts_fname, 'w')
+
+    loc1_to_status = {}
+    asn_to_status = {}
+    
+    for loc1 in loc1_asn_to_status:
+        for asn in loc1_asn_to_status[loc1]:
+
+            if is_US is True:
+                loc1_fqdn = idx_to_loc1_fqdn[loc1]
+                loc1_name = idx_to_loc1_name[loc1]
+            else:
+                loc1_fqdn = ctry_code_to_fqdn[loc1]
+                loc1_name = ctry_code_to_name[loc1]
+                
+            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc1_fqdn, asn)
+            this_d = loc1_asn_to_status[loc1][asn]
+            n_p = this_d["pinged"]
+            n_r = this_d["resp"]
+            custom_name = "{0}-{1}".format(loc1_name, asn)
+            ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+
+            if loc1 not in loc1_to_status:
+                loc1_to_status[loc1] = {"pinged" : 0, "resp" : 0}
+            
+            loc1_to_status[loc1]["pinged"] += n_p
+            loc1_to_status[loc1]["resp"] += n_r
+
+            if asn not in asn_to_status:
+                asn_to_status[asn] = {"pinged" : 0, "resp" : 0}
+
+            asn_to_status[asn]["pinged"] += n_p
+            asn_to_status[asn]["resp"] += n_r
+
+    for loc1 in loc1_to_status:
+        if is_US is True:
+            loc1_fqdn = idx_to_loc1_fqdn[loc1]
+            loc1_name = idx_to_loc1_name[loc1]
+        else:
+            loc1_fqdn = ctry_code_to_fqdn[loc1]
+            loc1_name = ctry_code_to_name[loc1]
+        
+        ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc1_fqdn)
+        this_d = loc1_to_status[loc1]
+        n_p = this_d["pinged"]
+        n_r = this_d["resp"]
+        custom_name = "{0}".format(loc1_name)
+        ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+    
+    for asn in asn_to_status:
+        
+        ioda_key = 'projects.zeusping.test1.routing.asn.{0}'.format(asn)
+        this_d = asn_to_status[asn]
+        n_p = this_d["pinged"]
+        n_r = this_d["resp"]
+        custom_name = "{0}".format(asn)
+        ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+
+    
+    loc2_to_status = defaultdict(int)
+    
+    for loc2 in loc2_asn_to_status:
+        for asn in loc2_asn_to_status[loc2]:
+
+            loc2_fqdn = idx_to_loc2_fqdn[loc2]
+            loc2_name = idx_to_loc2_name[loc2]
+                
+            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc2_fqdn, asn)
+            this_d = loc2_asn_to_status[loc2][asn]
+            n_p = this_d["pinged"]
+            n_r = this_d["resp"]
+            custom_name = "{0}-{1}".format(loc2_name, asn)
+            ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+            
+            if loc2 not in loc2_to_status:
+                loc2_to_status[loc2] = {"pinged" : 0, "resp" : 0}
+
+            loc2_to_status[loc2]["pinged"] += n_p
+            loc2_to_status[loc2]["resp"] += n_r
+
+    for loc2 in loc2_to_status:
+        if is_US is True:
+            loc2_fqdn = idx_to_loc2_fqdn[loc2]
+            loc2_name = idx_to_loc2_name[loc2]
+        else:
+            loc2_fqdn = ctry_code_to_fqdn[loc2]
+            loc2_name = ctry_code_to_name[loc2]
+        
+        ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc2_fqdn)
+        this_d = loc2_to_status[loc2]
+        n_p = this_d["pinged"]
+        n_r = this_d["resp"]
+        custom_name = "{0}".format(loc2_name)
+        ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+    
+    return op_fname, ts_fname    
     
 @profile
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
     if len(addr_to_resps) > 0:
 
         if write_bin == 0:
-            op_fname = '{0}/{1}_to_{2}/resps_per_round_ascii'.format(processed_op_dir, round_tstart, round_tend)
-            ping_aggrs_fp = open(op_fname, 'w')
-            dst_ct = 0
-            for dst in addr_to_resps:
-
-                # dst_ct += 1 # Since we don't use this variable, let's not update it. We get to save 6 seconds according to kernprof
-                this_d = addr_to_resps[dst]
-                ping_aggrs_fp.write("{0} {1} {2} {3} {4} {5}\n".format(dst, this_d[0], this_d[1], this_d[2], this_d[3], this_d[4] ) )
-
-            ping_aggrs_fp.close()
+            op_fname = write_resps_per_round_ascii(addr_to_resps, processed_op_dir, round_tstart, round_tend)
 
         else:
-            op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
-            ping_aggrs_fp = open(op_fname, 'wb')
+            op_fname, ts_fname = write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, round_tend)
 
-            for dst in sorted(addr_to_resps):
-                ping_aggrs_fp.write(struct_fmt.pack(dst, *(addr_to_resps[dst]) ) )
+            # Compress the ts file
+            gzip_cmd = 'gzip {0}'.format(ts_fname)
+            # sys.stderr.write("{0}\n".format(gzip_cmd) )
+            args = shlex.split(gzip_cmd)
 
-            ping_aggrs_fp.close()
+            if py_ver == 2:
+                try:
+                    subprocess32.check_call(args)
+                except subprocess32.CalledProcessError:
+                    sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+                    sys.exit(1)
+            else:
+                try:
+                    subprocess.check_call(args)
+                except subprocess.CalledProcessError:
+                    sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+                    sys.exit(1)
 
-        # Compress the file
+        # Compress the output file
         gzip_cmd = 'gzip {0}'.format(op_fname)
         # sys.stderr.write("{0}\n".format(gzip_cmd) )
         args = shlex.split(gzip_cmd)
@@ -398,6 +614,46 @@ def main():
 campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
 round_tstart = int(sys.argv[2])
 write_bin = int(sys.argv[3])
+pfx2AS_fn = sys.argv[4]
+netacq_date = sys.argv[5]
+scope = sys.argv[6]
+
+idx_to_loc1_name = {}
+idx_to_loc1_fqdn = {}
+idx_to_loc1_code = {}
+
+idx_to_loc2_name = {}
+idx_to_loc2_fqdn = {}
+idx_to_loc2_code = {}
+
+if scope == 'US':
+    is_US = True
+    # loc1 is regions, loc2 is counties
+    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, py_ver=2)
+    counties_fname = '/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(counties_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
+    
+else:
+    is_US = False
+    # loc1 is countries, loc2 is regions
+
+    ctry_code_to_fqdn = {}
+    ctry_code_to_name = {}
+    countries_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(countries_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, ctry_code_to_fqdn=ctry_code_to_fqdn, ctry_code_to_name=ctry_code_to_name, py_ver=2)
+    
+    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
+
+    
+rtree = radix.Radix()
+rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
+
+# Load pyipmeta in order to perform geo lookups per address
+provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+ipm = pyipmeta.IpMeta(provider="netacq-edge",
+                      provider_config=provider_config_str)
 
 if write_bin == 1:
     struct_fmt = struct.Struct("I 5H")
