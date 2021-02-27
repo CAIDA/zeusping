@@ -73,8 +73,9 @@ tend = int(sys.argv[2])
 inp_dir = sys.argv[3]
 netacq_date = sys.argv[4]
 usstate_to_reqd_asns_fname = sys.argv[5] # NOTE: Even if we're handling old CO, note that we'll need a usstate_to_reqd_asns_fname.
-if (len(sys.argv) > 6):
-   if sys.argv[6] == 'append': # If we mess up processing and want to append to files instead of overwriting files
+pfx2as_date = sys.argv[6]
+if (len(sys.argv) > 7):
+   if sys.argv[7] == 'append': # If we mess up processing and want to append to files instead of overwriting files
        must_append = 1
    else:
        must_append = 0
@@ -141,7 +142,8 @@ ip_to_as = {}
 ip_to_usstate = {}
 for usstate in usstate_to_reqd_asns:
 
-    usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_20200805.pfx2as.gz'.format(usstate)
+    
+    usstate_ip_to_as_file = '/scratch/zeusping/probelists/us_addrs/{0}_addrs/all_{0}_addresses_{1}.pfx2as.gz'.format(usstate, pfx2as_date)
     
     ip_to_as_fp = wandio.open(usstate_ip_to_as_file)
     sys.stderr.write("Opening ip_to_as_fp for {0} at {1}\n".format(usstate, str(datetime.datetime.now() ) ) )
