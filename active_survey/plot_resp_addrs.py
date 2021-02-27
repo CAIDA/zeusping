@@ -146,11 +146,9 @@ if __name__=="__main__":
         # TODO: This is a list of ASes for CA. Think about how we can generalize this list of ASes for arbitrary states and/or countries
         # reqd_asns = ['7018','20001','7922','5650','22773','7132','701','20115','4565','2828','16591','18566','3561','22394','7065','7029','46375','209','7155']
 
-
-
         if isbarh == 0:
-            fig, ax = plt.subplots(figsize=(4.5, 2.625))
-            ax.set_xlabel(xlabel)
+            fig, ax = plt.subplots(figsize=(8, 3.625))
+            # ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
         else:
             fig, ax = plt.subplots(figsize=(2.625, 4))
@@ -160,7 +158,7 @@ if __name__=="__main__":
         x_arr = []
         y_arr = {"tot_resp" : [], "tot" : [], "pct_resp" : []}
         x_val = 0
-        max_vals = 15
+        max_vals = 20
         for tup in sorted_d:
             aggr = tup[0]
             val = tup[1]
@@ -209,6 +207,9 @@ if __name__=="__main__":
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
+
+        lgd = ax.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="upper center", ncol=2)
+        
     elif mode == "1r3c":
 
         # 1 row and 3 columns for barh
@@ -223,7 +224,7 @@ if __name__=="__main__":
             # ax.set_xlabel(xlabel)
             # ax.set_ylabel(ylabel)
         else:
-            fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(10, 2.625))
+            fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(10, 4))
 
         # i = 0
         j = 0
