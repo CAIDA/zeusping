@@ -474,12 +474,8 @@ def write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, rou
             loc2_to_status[loc2]["resp"] += n_r
 
     for loc2 in loc2_to_status:
-        if is_US is True:
-            loc2_fqdn = idx_to_loc2_fqdn[loc2]
-            loc2_name = idx_to_loc2_name[loc2]
-        else:
-            loc2_fqdn = ctry_code_to_fqdn[loc2]
-            loc2_name = ctry_code_to_name[loc2]
+        loc2_fqdn = idx_to_loc2_fqdn[loc2]
+        loc2_name = idx_to_loc2_name[loc2]
         
         ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc2_fqdn)
         this_d = loc2_to_status[loc2]
@@ -536,11 +532,6 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
                 sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
                 sys.exit(1)
             
-
-        # TODO: Upload to Swift
-
-        # TODO: Delete temporary file after verifying that the upload completed
-
     op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
 
 @profile    
@@ -608,6 +599,8 @@ def main():
     op_log_fp.close()
     vp_to_vpnum_fp.close()
     vp_to_resps_fp.close()
+
+    # NOTE: Some other process will find all these files, upload them to Swift, and delete temporary files. This process is doing enough as it is and it needs to execute in near-real time. So let's move the uploading to Swift and deletion of temporary files to a separate (and independent) process
 
 
 ############## Read command line args and call main() #####################
