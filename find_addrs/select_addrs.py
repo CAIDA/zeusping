@@ -78,7 +78,7 @@ for line in loc_to_reqd_asns_fp:
         st_line_ct += 1
 
         if st_line_ct%100000 == 0:
-            sys.stderr.write("Done with {0} lines at: {1}\n".format(st_line_ct, str(datetime.datetime.now() ) ) )
+            sys.stderr.write("Done with {0} lines of {1} at: {2}\n".format(st_line_ct, st_fname, str(datetime.datetime.now() ) ) )
         
         parts = line.strip().split('|')
 
@@ -87,19 +87,20 @@ for line in loc_to_reqd_asns_fp:
 
         addr = parts[0].strip()
 
-        # NOTE: I thought that addresses would not repeat. Strangely enough, they did, so I had to add extra book-keeping below to ensure that an address that had been added before is not added again.
-        if addr in done_addrs:
-            continue
-
-        done_addrs.add(addr)
-
-        if addr in blacklist:
-            continue
-        
         asn = parts[1].strip()
 
         # if ( (asn in reqd_asns) or (asn in known_residential_asns) ): # Perhaps we will use the latter check for surveys alone...? Not sure if it's necessary to probe 500 available addresses in Comcast in North Dakota... although it may be useful to simply find all residential addresses, no matter how few, simply to sample more ISPs. Think more about it.
-        if ( (asn in reqd_asns) ):
+        if ( (asn in reqd_asns) and (addr not in done_addrs) and (addr not in blacklist) ):
+
+            # Added the tests below to the if condition. 
+            # if addr in blacklist:
+            #     continue
+            
+            # # NOTE: I thought that addresses would not repeat. Strangely enough, they did, so I had to add extra book-keeping below to ensure that an address that had been added before is not added again.
+            # if addr in done_addrs:
+            #     continue
+
+            done_addrs.add(addr)
 
             if asn in st_asn_to_sampling_factor[state]:
                 sampling_factor = st_asn_to_sampling_factor[state][asn]
