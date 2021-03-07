@@ -12,14 +12,16 @@ if sys.version_info[0] == 2:
     py_ver = 2
     import wandio
     import subprocess32
-    from sc_warts import WartsReader
 else:
     py_ver = 3
 
     
-def read_ts_file(this_t, ts_fname):
-    
-    wandiocat_cmd = 'wandiocat swift://zeusping-processed/{0}'.format(ts_fname)
+def read_ts_file(this_t, ts_fname, is_swift):
+
+    if is_swift == 1:
+        wandiocat_cmd = 'wandiocat swift://zeusping-processed/{0}'.format(ts_fname)
+    else:
+        wandiocat_cmd = 'wandiocat {0}'.format(ts_fname)
     sys.stderr.write("{0}\n".format(wandiocat_cmd) )
 
     args = shlex.split(wandiocat_cmd)
@@ -51,7 +53,7 @@ def read_ts_file(this_t, ts_fname):
                 # print fqdn
                 if fqdn not in op_fps:
                     op_fps[fqdn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_{1}".format(op_dir, fqdn), 'w')
-                op_fps[fqdn].write("{0} {1} {2}\n".format(this_t, parts[2], parts[3]) )
+                op_fps[fqdn].write("{0}|{1}|{2}|{3}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), parts[2], parts[3]) )
 
 
 tstart = int(sys.argv[1])
@@ -85,10 +87,14 @@ for this_t in range(tstart, tend, 600):
 
     round_id = "{0}_to_{1}".format(this_t, this_t + 600)
     this_t_dt = datetime.datetime.utcfromtimestamp(this_t)
-    
-    ts_fname = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/round={5}/ts.gz'.format(campaign, this_t_dt.year, this_t_dt.strftime("%m"), this_t_dt.strftime("%d"), this_t_dt.strftime("%H"), round_id)
 
-    read_ts_file(this_t, ts_fname)
+    if is_swift == 1:
+        ts_fname = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/round={5}/ts.gz'.format(campaign, this_t_dt.year, this_t_dt.strftime("%m"), this_t_dt.strftime("%d"), this_t_dt.strftime("%H"), round_id)
+    else:
+        # Let's assume that op_dir is the same as the inp_dir
+        ts_fname = "{0}/{1}/ts.gz".format(op_dir, round_id)
 
-    
-    
+    sys.stderr.write("{0}\n".format(ts_fname) )
+    # sys.exit(1)
+
+    read_ts_file(this_t, ts_fname, is_swift)
