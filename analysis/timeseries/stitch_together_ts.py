@@ -43,17 +43,18 @@ def read_ts_file(this_t, ts_fname, is_swift):
         for line in iter(proc.stdout.readline, b''):
             parts = line.strip().split('|')
             full_name = parts[0]
-            if "projects.zeusping.test1.routing" in full_name:
-                asn = parts[1]
-                if asn not in op_fps:
-                    op_fps[asn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_AS{1}".format(op_dir, asn), 'w')
-                op_fps[asn].write("{0} {1} {2}\n".format(this_t, parts[2], parts[3]) )
-            elif "projects.zeusping.test1.geo.netacuity" in full_name:
-                fqdn = parts[0][offset:]
-                # print fqdn
-                if fqdn not in op_fps:
-                    op_fps[fqdn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_{1}".format(op_dir, fqdn), 'w')
-                op_fps[fqdn].write("{0}|{1}|{2}|{3}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), parts[2], parts[3]) )
+
+            # if "projects.zeusping.test1.routing" in full_name:
+            #     asn = parts[1]
+            #     if asn not in op_fps:
+            #         op_fps[asn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_AS{1}".format(op_dir, asn), 'w')
+            #     op_fps[asn].write("{0} {1} {2}\n".format(this_t, parts[2], parts[3]) )
+            # elif "projects.zeusping.test1.geo.netacuity" in full_name:
+            fqdn = full_name[offset:]
+            # print fqdn
+            if fqdn not in op_fps:
+                op_fps[fqdn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_{1}".format(op_dir, fqdn), 'w')
+            op_fps[fqdn].write("{0}|{1}|{2}|{3}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), parts[2], parts[3]) )
 
 
 tstart = int(sys.argv[1])
@@ -62,7 +63,8 @@ campaign = sys.argv[3]
 op_dir = sys.argv[4]
 is_swift = int(sys.argv[5])
 
-offset = len("projects.zeusping.test1.geo.netacuity.")
+# offset = len("projects.zeusping.test1.geo.netacuity.")
+offset = len("projects.zeusping.test1.")
 
 mkdir_cmd = 'mkdir -p {0}/pinged_resp_per_round/'.format(op_dir)
 args = shlex.split(mkdir_cmd)
