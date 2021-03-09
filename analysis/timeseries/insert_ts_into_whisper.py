@@ -55,23 +55,29 @@ def build_tstamp_to_vals(inp_dir, tstamp_to_vals):
             n_p = int(parts[2])
             key = "{0}.pinged_addr_cnt".format(fqdn)
             tstamp_to_vals[ts][key] = n_p
-            # set_keyval(key, n_p)
-
+            
             n_r = int(parts[3])
-            key = "{0}.echoresponse_addr_cnt".format(fqdn)
-            tstamp_to_vals[ts][key] = n_r            
-            # set_keyval(key, n_r)
+            r_key = "{0}.echoresponse_addr_cnt".format(fqdn)
+            tstamp_to_vals[ts][r_key] = n_r
 
             n_r_prev = n_r
             prev_ts = ts - 600
             if prev_ts in tstamp_to_vals:
-                if key in tstamp_to_vals[prev_ts]:
-                    n_r_prev = tstamp_to_vals[prev_ts][key]
+                if r_key in tstamp_to_vals[prev_ts]:
+                    n_r_prev = tstamp_to_vals[prev_ts][r_key]
             
-            # n_d = n_r_prev - n_r
-            # key = "{0}.disrupted_addr_cnt".format(fqdn)
-            # tstamp_to_vals[ts][key] = n_d
-            # set_keyval(key, n_u)
+            n_d = n_r_prev - n_r
+            
+            if n_d >= 0:
+                key = "{0}.disrupted_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][key] = n_d
+                key = "{0}.antidisrupted_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][key] = 0
+            else:
+                key = "{0}.antidisrupted_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][key] = abs(n_d)
+                key = "{0}.disrupted_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][key] = 0
             
         # sys.exit(1)
 
@@ -118,6 +124,9 @@ build_tstamp_to_vals(inp_dir, tstamp_to_vals)
 
 for tstamp in tstamp_to_vals:
     for key in tstamp_to_vals[tstamp]:
+        # TODO: Uncomment the following ASAP!
+        if ( ("pinged_addr_cnt" in key) or ("echoresponse_addr_cnt" in key) ):
+            continue
         set_keyval(key, tstamp_to_vals[tstamp][key])
         
     kp.flush(tstamp)
