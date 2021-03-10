@@ -19,5 +19,5 @@ for line in region_idxs_fp:
     fqdn = parts[1].strip()
     region_name = parts[2][1:-1] # Get rid of quotes
 
-    sys.stdout.write("{0},{1}\n".format(idx, region_name) )
+    sys.stdout.write("{0},{1},{2}\n".format(idx, fqdn, region_name) )
 
