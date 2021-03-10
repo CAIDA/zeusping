@@ -69,7 +69,7 @@ def ipstr_to_ipint(ipstr):
     return ipint
     
 
-def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code, ctry_code_to_fqdn=None, py_ver=3):
+def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_code, ctry_code_to_fqdn=None, ctry_code_to_name=None, py_ver=3):
     read_cmd = 'zcat {0}'.format(loc_fname)
     args = shlex.split(read_cmd)
 
@@ -95,4 +95,6 @@ def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_co
             if ctry_code_to_fqdn is not None:
                 ctry_code_to_fqdn[loc_code] = fqdn
 
+            if ctry_code_to_name is not None:
+                ctry_code_to_name[loc_code] = loc_name
 
