@@ -228,8 +228,11 @@ for line in inp_ips_fp:
                 
     ip_to_county[ip] = county_id
 
-    # TODO: Write annotated_fp with | as the separator. 
-    annotated_fp.write("{0} {1} {2} {3} {4}\n".format(line[:-1], usstate, asn, county_id, county_name) )
+    n_d = parts[1]
+    n_r = parts[2]
+    n_n = parts[3]
+    
+    annotated_fp.write("{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}\n".format(ip, n_d, n_r, n_n, asn, usstate, county_id, county_name) )
         
     # reqd_ips.add(ip)
     
