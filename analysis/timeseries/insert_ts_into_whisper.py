@@ -56,7 +56,7 @@ def build_tstamp_to_vals(inp_dir, tstamp_to_vals):
             key = "{0}.pinged_addr_cnt".format(fqdn)
             tstamp_to_vals[ts][key] = n_p
             
-            n_r = int(parts[3])
+            n_r = int(parts[4])
             r_key = "{0}.echoresponse_addr_cnt".format(fqdn)
             tstamp_to_vals[ts][r_key] = n_r
 
@@ -85,7 +85,7 @@ def build_tstamp_to_vals(inp_dir, tstamp_to_vals):
 PREF = "projects.zeusping.test1"
 
 inp_dir = sys.argv[1]
-# If we are processing the US, let us now write timeseries files for ASes. We do not want to do this because various ZeusPing campaigns would have pinged addresses in the same AS (7922 is pinged in LA_MS_AL_AR_FL_CT and also in CA_ME). If we insert TS values for each AS from these campaigns, they will get clobbered.
+# If we are processing the US, let us not write timeseries files for ASes. We do not want to do this because various ZeusPing campaigns would have pinged addresses in the same AS (7922 is pinged in LA_MS_AL_AR_FL_CT and also in CA_ME). If we insert TS values for each AS from these campaigns, they will get clobbered.
 is_US = int(sys.argv[2])
 
 
@@ -124,9 +124,9 @@ build_tstamp_to_vals(inp_dir, tstamp_to_vals)
 
 for tstamp in tstamp_to_vals:
     for key in tstamp_to_vals[tstamp]:
-        # TODO: Uncomment the following ASAP!
-        if ( ("pinged_addr_cnt" in key) or ("echoresponse_addr_cnt" in key) ):
-            continue
+        # NOTE: Comment the following if we want all time series values
+        # if ( ("pinged_addr_cnt" in key) or ("echoresponse_addr_cnt" in key) ):
+        #     continue
         set_keyval(key, tstamp_to_vals[tstamp][key])
         
     kp.flush(tstamp)
