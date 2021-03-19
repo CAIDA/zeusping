@@ -6,6 +6,7 @@ import os
 import shlex
 import subprocess
 import datetime
+from collections import defaultdict
 
 
 if sys.version_info[0] == 2:
@@ -52,9 +53,33 @@ def read_ts_file(this_t, ts_fname, is_swift):
             # elif "projects.zeusping.test1.geo.netacuity" in full_name:
             fqdn = full_name[offset:]
             # print fqdn
+
+            if this_t not in tstamp_to_vals:
+                tstamp_to_vals[this_t] = defaultdict(dict)
+
+            n_p = int(parts[2])
+            tstamp_to_vals[this_t][fqdn]['n_p'] = n_p
+            
+            n_r = int(parts[3])
+            tstamp_to_vals[this_t][fqdn]['n_r'] = n_r
+            
+            n_r_prev = n_r
+            prev_t = this_t - 600
+            if prev_t in tstamp_to_vals:
+                if fqdn in tstamp_to_vals[prev_t]:
+                    n_r_prev = tstamp_to_vals[prev_t][fqdn]['n_r']
+            
+            n_d = n_r_prev - n_r
+            if n_d > 0:
+                n_a = 0
+            else:
+                n_a = abs(n_d)
+                n_d = 0
+            
             if fqdn not in op_fps:
                 op_fps[fqdn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_{1}".format(op_dir, fqdn), 'w')
-            op_fps[fqdn].write("{0}|{1}|{2}|{3}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), parts[2], parts[3]) )
+                
+            op_fps[fqdn].write("{0}|{1}|{2}|{3}|{4}|{5}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), n_p, n_d, n_r, n_a) )
 
 
 tstart = int(sys.argv[1])
@@ -84,6 +109,7 @@ else:
 
 
 op_fps = {}
+tstamp_to_vals = {}
 
 for this_t in range(tstart, tend, 600):
 
