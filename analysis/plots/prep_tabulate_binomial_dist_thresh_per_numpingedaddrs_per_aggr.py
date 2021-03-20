@@ -5,18 +5,40 @@ import scipy
 import os
 from scipy.stats import binom
 import datetime
+import collections
 
 bin_size = int(sys.argv[1])
 
 # int_nums = [10, 50, 100, 500, 1000, 5000, 10000]
-int_nums = [10000, 50000, 56800, 75000, 100000, 150000, 200000, 250000, 500000]
-int_durs = [3600, 3600*4, 3600*6, 3600*8, 3600*12, 86400, 7*86400, 30*86400, 3600 * 269.687]
+int_nums = [10000, 50000, 56800, 75000, 100000, 150000, 200000, 250000, 500000, 1000000]
+int_durs_to_durlabels = collections.OrderedDict()
+int_durs_to_durlabels[3600] = "1_per_h"
+int_durs_to_durlabels[3600*4] = "1_per_4h"
+int_durs_to_durlabels[3600*6] = "1_per_6h"
+int_durs_to_durlabels[3600*8] = "1_per_8h"
+int_durs_to_durlabels[3600*12] = "1_per_12h"
+int_durs_to_durlabels[86400] = "1_per_d"
+int_durs_to_durlabels[7*86400] = "1_per_7d"
+int_durs_to_durlabels[30*86400] =  "1_per_30d"
+
+sys.stdout.write("{0:>10}".format("Num_addrs") )    
 int_fprobs = []
-for dur in int_durs:
+for dur in int_durs_to_durlabels:
+
+    sys.stdout.write(" & {0:>10}".format(int_durs_to_durlabels[dur]) )
+    
     num_660s_bins = dur/float(bin_size)
     int_fprobs.append(1/num_660s_bins)
 
-print int_fprobs
+# print int_fprobs
+sys.stdout.write("\\\\\n")
+
+sys.stdout.write("{0:>10}".format("Num_addrs") )
+idx = 0
+for dur in int_durs_to_durlabels:
+    sys.stdout.write(" & {0:.10f}".format(int_fprobs[idx]) )
+    idx += 1
+sys.stdout.write("\\\\\n")
 
 for int_num in int_nums:
     ls = []
