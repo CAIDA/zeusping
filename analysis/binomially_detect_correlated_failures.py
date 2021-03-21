@@ -11,15 +11,14 @@ import datetime
 conf = 0.9999
 reqd_conf = float(conf)
 
-processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
-resp_dropout_per_round_fname = '{0}/responsive_and_dropout_addrs/resp_dropout_per_round'.format(processed_op_dir)
-resp_dropout_per_round_fp = open(resp_dropout_per_round_fname, 'r')
+rda_fname = sys.argv[1]
+rda_fp = open(rda_fname)
 
 total_n_r = 0
 total_n_d = 0
 
 line_ct = 0
-for line in resp_dropout_per_round_fp:
+for line in rda_fp:
 
     line_ct += 1
 
@@ -30,23 +29,36 @@ for line in resp_dropout_per_round_fp:
         continue
 
     parts = line.strip().split()
-    n_r = int(parts[1])
-    n_n = int(parts[2])
-    n_d = int(parts[3])
+    n_d = int(parts[1])
+    n_r = int(parts[2])
+    n_a = int(parts[3])
     total_n_r += n_r
     total_n_d += n_d
 
-p_d = float(total_n_d)/total_n_r
+# Let us ensure statistical significance    
+sample_prop = total_n_d/float(total_n_r)
+sample_prop_complement = 1 - sample_prop
+thresh = total_n_r * sample_prop * sample_prop_complement
+
+
+sys.stderr.write("Threshold is {0:.4f}\n".format(thresh) )
+
+if ( (thresh < 10) ):
+    sys.stderr.write("Threshold is too small, not enough samples\n")
+    sys.exit(1)
+
+sys.stderr.write("Probability of dropout is: {0:.6f}\n".format(sample_prop) )    
+p_d = sample_prop
 
 p_d *= 2
 
 sys.stderr.write("Probability of dropout is: {0}\n".format(p_d) )
 
-resp_dropout_per_round_fp.close()
-resp_dropout_per_round_fp = open(resp_dropout_per_round_fname, 'r')
+rda_fp.close()
+rda_fp = open(rda_fname, 'r')
 
 line_ct = 0
-for line in resp_dropout_per_round_fp:
+for line in rda_fp:
 
     line_ct += 1
 
@@ -55,11 +67,12 @@ for line in resp_dropout_per_round_fp:
 
     parts = line.strip().split()
     round_tstamp = int(parts[0])
-    n_r = int(parts[1])
-    n_d = int(parts[3])
+    n_d = int(parts[1])
+    n_r = int(parts[2])
 
     if (n_d > 1): # A single outage cannot be a correlated failure!
-        
+
+        # TODO: Consider moving the following two steps outside. We can approximate how much n_r is in each round and calculate these a single time. 
         max_necessary = float(n_r*0.65) # Even with a 0.5 P(f), no need to calculate beyond 0.65 * N        
         k = numpy.arange(max_necessary)
     
@@ -86,4 +99,4 @@ for line in resp_dropout_per_round_fp:
             sys.stdout.write("{0} {1} {2} {3} {4}\n".format(round_tstamp, n_d, n_r, min_outs_reqd, 1 - outs_cdf) )
 
 
-            
+rda_fp.close()
