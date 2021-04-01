@@ -4,9 +4,23 @@
 import sys
 import glob
 import datetime
+import radix
+
+zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+sys.path.append(zeusping_utils_path + "/utils")
+import zeusping_helpers
+
 
 inp_dir = sys.argv[1]
 op_fp = open(sys.argv[2], 'w')
+
+MUST_FIND_AS = 1
+
+if MUST_FIND_AS == 1:
+    pfx2AS_fn = '/data/routing/routeviews-prefix2as/2021/02/routeviews-rv2-20210227-1200.pfx2as.gz'
+    rtree = radix.Radix()
+    rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
+    s24_to_asn = {}
 
 op_s24s = set()
 
@@ -33,8 +47,25 @@ for ip_fname in ip_fnames:
 
         op_s24s.add(s24)
 
+        if MUST_FIND_AS == 1:
+            asn = 'UNK'
+            s24_addr1 = "{0}.{1}.{2}.1".format(parts[0], parts[1], parts[2])
+            rnode = rtree.search_best(s24_addr1)
+            if rnode is None:
+                asn = 'UNK'
+            else:
+                asn = rnode.data["origin"]
+
+            s24_to_asn[s24] = asn
+
     ip_fp.close()
 
 
 for s24 in op_s24s:
     op_fp.write("{0}\n".format(s24) )
+
+if MUST_FIND_AS == 1:
+    s24_to_as_fp = open("{0}_with_asn".format(sys.argv[2]), 'w')
+
+    for s24 in s24_to_asn:
+        s24_to_as_fp.write("{0}|{1}\n".format(s24, s24_to_asn[s24]) )
