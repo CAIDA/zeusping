@@ -35,8 +35,8 @@ try:
 except OSError:
     pass
     
-county_fname = "{0}entergylouisiana_{1}_county".format(fdir, writing_time)
-zip_fname = "{0}entergylouisiana_{1}_zip".format(fdir, writing_time)
+county_fname = "{0}{1}_county_entergylouisiana".format(fdir, writing_time)
+zip_fname = "{0}{1}_zip_entergylouisiana".format(fdir, writing_time)
 entergylouisiana_county_op_fp = open(county_fname, 'w')
 entergylouisiana_zip_op_fp = open(zip_fname, 'w')
 # if __name__ == '__main__':
