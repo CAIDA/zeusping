@@ -19,19 +19,20 @@ import power_outage_parser
 # We'll need to open a new file for every hour. So do some datetime magic. Perhaps use epochtime, keep incrementing by 3600 and convert into dt
 # Do an ls inside the folder. Find all files. Sort them. Then open them in sorted order.
 
-po_company = sys.argv[1]
-start_time = int(sys.argv[2]) # Start hour that we are interested in
-end_time = int(sys.argv[3]) # End hour that we are interested in
-aggr = sys.argv[4] # County/zip etc.
-state_op_fname = sys.argv[5]
-county_op_fname = sys.argv[6]
+po_path = sys.argv[1]
+po_company = sys.argv[2]
+start_time = int(sys.argv[3]) # Start hour that we are interested in
+end_time = int(sys.argv[4]) # End hour that we are interested in
+aggr = sys.argv[5] # County/zip etc.
+state_op_fname = sys.argv[6]
+county_op_fname = sys.argv[7]
 
 regex_str = '(\d{10}).*' + aggr + "|" + aggr + '.*(\d{10})'
 # print regex_str
 
 tstamp_to_fname = {}
 
-sorted_d = power_outage_parser.get_tstamp_to_fname(po_company, start_time, end_time, aggr, regex_str, tstamp_to_fname)
+sorted_d = power_outage_parser.get_tstamp_to_fname(po_path, po_company, start_time, end_time, aggr, regex_str, tstamp_to_fname)
 
 last_written_time = -1
 

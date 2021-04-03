@@ -41,15 +41,15 @@ def update_regional_outages(ongoing_regional_outages, regional_outages, regionNa
             ongoing_regional_outages[regionName] = {"start" : written_time, "last" : written_time, "custs" : customersAffected}
 
 
-def get_tstamp_to_fname(po_company, start_time, end_time, aggr, regex_str, tstamp_to_fname):
+def get_tstamp_to_fname(po_path, po_company, start_time, end_time, aggr, regex_str, tstamp_to_fname):
 
     aggr_regex = re.compile(regex_str)
 
     for hour_epoch in range(start_time, end_time, 3600):
         hour_dt = datetime.datetime.utcfromtimestamp(hour_epoch)
 
-        fdir = '/scratch/zeusping/power_aug2020_to_mar2021/{0}/year={1}/month={2}/day={3}/hour={4}/*'.format(po_company, hour_dt.year, hour_dt.strftime("%m"), hour_dt.strftime("%d"), hour_dt.strftime("%H") )    
-        # fdir = '/scratch/zeusping/power/{0}/year={1}/month={2}/day={3}/hour={4}/'.format(po_company, hour_dt.year, hour_dt.strftime("%m"), hour_dt.strftime("%d"), hour_dt.strftime("%H") )
+        # fdir = '/scratch/zeusping/power_aug2020_to_mar2021/{0}/year={1}/month={2}/day={3}/hour={4}/*'.format(po_company, hour_dt.year, hour_dt.strftime("%m"), hour_dt.strftime("%d"), hour_dt.strftime("%H") )    
+        fdir = '{0}/{1}/year={2}/month={3}/day={4}/hour={5}/*'.format(po_path, po_company, hour_dt.year, hour_dt.strftime("%m"), hour_dt.strftime("%d"), hour_dt.strftime("%H") )
 
         unsorted_files = glob.glob(fdir)
 
