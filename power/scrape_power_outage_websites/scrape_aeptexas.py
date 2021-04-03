@@ -33,8 +33,8 @@ try:
 except OSError:
     pass
 
-county_fname = "{0}{1}_county".format(fdir, writing_time)
-zip_fname = "{0}{1}_zip".format(fdir, writing_time)
+county_fname = "{0}{1}_county_aeptexas".format(fdir, writing_time)
+zip_fname = "{0}{1}_zip_aeptexas".format(fdir, writing_time)
 aeptexas_county_op_fp = open(county_fname, 'a')
 aeptexas_zip_op_fp = open(zip_fname, 'a')
 main(writing_time)
