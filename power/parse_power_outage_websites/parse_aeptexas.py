@@ -32,7 +32,7 @@ regex_str = '(\d{10}).*' + aggr + "|" + aggr + '.*(\d{10})'
 
 tstamp_to_fname = {}
 
-sorted_d = power_outage_parser.get_tstamp_to_fname(po_path, po_company, start_time, end_time, aggr, regex_str, tstamp_to_fname)
+sorted_d = power_outage_parser.get_tstamp_to_fname(po_path, po_company, start_time, end_time, regex_str, tstamp_to_fname)
 
 last_written_time = -1
 

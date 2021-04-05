@@ -41,7 +41,7 @@ def update_regional_outages(ongoing_regional_outages, regional_outages, regionNa
             ongoing_regional_outages[regionName] = {"start" : written_time, "last" : written_time, "custs" : customersAffected}
 
 
-def get_tstamp_to_fname(po_path, po_company, start_time, end_time, aggr, regex_str, tstamp_to_fname):
+def get_tstamp_to_fname(po_path, po_company, start_time, end_time, regex_str, tstamp_to_fname):
 
     aggr_regex = re.compile(regex_str)
 

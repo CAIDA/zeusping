@@ -23,7 +23,7 @@ for line in fp:
     data = json.loads(line)
 
     written_time = data["writing_time"]
-    dt = datetime.datetime.utcfromtimestamp(1358956400)
+    dt = datetime.datetime.utcfromtimestamp(written_time)
 
     sys.stdout.write("Written at: {0}\n".format(dt) )
 
