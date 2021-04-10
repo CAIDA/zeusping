@@ -6,6 +6,7 @@ import time
 import datetime
 import dateutil
 import calendar
+import os
 
 import json
 import pprint
@@ -51,7 +52,29 @@ file_ct = 0
 tstamp_regex = re.compile('(\d{10}).*')
 
 for elem in sorted_d:
-    sys.stderr.write("Processing {0}\n".format(elem[1]) )
+    # sys.stderr.write("Processing {0}\n".format(elem[1]) )
+
+    matched_stuff = tstamp_regex.search(elem[0])
+    if matched_stuff is None:
+        sys.stdout.write("Did not match: {0}\n".format(elem[0]) )
+        sys.exit(1)
+        continue
+    # sys.stdout.write("Matched: {0}\n".format(elem[0]) )
+    written_time = int(matched_stuff.group(1))
+
+    # To find when data was missing
+    power_outage_parser.print_missing_data_dates(written_time, last_written_time)
+
+    # I empirically determined that files written before 1607563502 used the earlier format
+    if written_time < 1607563502:
+        MODE = 'PRE_1607563502'
+    else:
+        MODE = 'POST_1607563502'
+    
+    if os.stat(elem[1]).st_size == 0:
+        # sys.stderr.write("Empty file at: {0}, {1}\n".format(elem[0], str(datetime.datetime.utcfromtimestamp(written_time) ) ) )
+        # last_written_time = written_time
+        continue
 
     fp = open(elem[1])
     file_ct += 1
@@ -60,9 +83,10 @@ for elem in sorted_d:
 
         data = json.loads(line)
 
-        # if len(data) == 0:
-        #     sys.stderr.write("Missing data at: {0}\n".format(str(datetime.datetime.utcfromtimestamp(elem[0]) ) )
-        #     continue
+        if len(data) == 0:
+            sys.stderr.write("Empty array at: {0}, {1}\n".format(elem[0], str(datetime.datetime.utcfromtimestamp(written_time) ) ) )
+            last_written_time = written_time
+            continue
 
         # written_time = data["writing_time"]
 
@@ -70,8 +94,8 @@ for elem in sorted_d:
         # print json.dumps(data, indent=4, sort_keys=True)
         # sys.exit(1)
 
-        if MODE == 2020:
-            # What we found: Each entry consists of a list of county (or zip) names along with details about the county (or zip)
+        if MODE == 'PRE_1607563502':
+            # What we found: Each entry is a list of county (or zip) names along with details about the county (or zip)
             # print data[0][5]
 
             # NOTE: I initially considered getting the written_time from the first element in the list of outages (which has some timestamp populated by Entergy). However, I decided to go with the timestamp encoded in the file-name instead, since this records the time at which we scraped the page.
@@ -81,23 +105,9 @@ for elem in sorted_d:
             #     written_time_ms = str(data[0][4])
             # written_time = int(written_time_ms[:-3])
 
-            matched_stuff = tstamp_regex.search(elem[0])
-
-            if matched_stuff is None:
-                sys.stdout.write("Did not match: {0}\n".format(elem[0]) )
-                sys.exit(1)
-                continue
-
-            # sys.stdout.write("Matched: {0}\n".format(elem[0]) )
-
-            written_time = int(matched_stuff.group(1))
-            
             # print written_time
             # sys.exit(1)
             
-            # To find when data was missing
-            power_outage_parser.print_missing_data_dates(written_time, last_written_time)
-
             for county_info in data:
 
                 if aggr == 'county':
@@ -118,6 +128,25 @@ for elem in sorted_d:
                 if county_out_custs >= power_outage_parser.COUNTY_MIN_THRESH:
                     power_outage_parser.update_regional_outages(ongoing_county_outages, county_outages, county_name, county_out_custs, written_time)
 
+        elif MODE == 'POST_1607563502':
+            # What we found: Each entry is a list of county (or zip) data. Each element in the list is a dict with details about the county (or zip)
+            for county_info in data:
+
+                if aggr == 'county':
+                    county_name = county_info["county"]
+                    # print county_name
+                    # sys.exit(1)
+                elif aggr == 'zip':
+                    county_name = county_info["zip"]
+                state_code = county_info["state"]
+                std_state_code = state_code_to_std[state_code]
+                county_out_custs = county_info["customersAffected"]
+
+                county_name = "{0}-{1}".format(std_state_code, county_name)
+
+                if county_out_custs >= power_outage_parser.COUNTY_MIN_THRESH:
+                    power_outage_parser.update_regional_outages(ongoing_county_outages, county_outages, county_name, county_out_custs, written_time)
+                
         # Update variables for next round
         last_written_time = written_time
         
