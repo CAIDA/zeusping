@@ -77,7 +77,7 @@ def read_ts_file(this_t, ts_fname, is_swift):
                 n_d = 0
             
             if fqdn not in op_fps:
-                op_fps[fqdn] = open("{0}/pinged_resp_per_round/pinged_resp_per_round_{1}".format(op_dir, fqdn), 'w')
+                op_fps[fqdn] = open("{0}/pinged_resp_per_round_{1}to{2}/pinged_resp_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
                 
             op_fps[fqdn].write("{0}|{1}|{2}|{3}|{4}|{5}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), n_p, n_d, n_r, n_a) )
 
@@ -91,7 +91,7 @@ is_swift = int(sys.argv[5])
 # offset = len("projects.zeusping.test1.geo.netacuity.")
 offset = len("projects.zeusping.test1.")
 
-mkdir_cmd = 'mkdir -p {0}/pinged_resp_per_round/'.format(op_dir)
+mkdir_cmd = 'mkdir -p {0}/pinged_resp_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
 args = shlex.split(mkdir_cmd)
 if py_ver == 2:
     try:
