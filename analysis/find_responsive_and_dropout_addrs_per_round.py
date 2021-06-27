@@ -105,11 +105,10 @@ def get_resp_unresp(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, 
                 #     sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(ipstr, sent_pkts, successful_resps, host_unreach, icmp_err, losses) )
                 #     sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(ipstr, gmpy.popcount(sent_pkts), gmpy.popcount(successful_resps), gmpy.popcount(host_unreach), gmpy.popcount(icmp_err), gmpy.popcount(losses) ) )
                     # sys.exit(1)
-                    
                 
                 if gmpy.popcount(successful_resps) > 0:
                     # resp_addrs.add(ipstr)
-                    resp_addrs.add(ipid)                    
+                    resp_addrs.add(ipid)
                 # NOTE: In future, let's consider special cases where there may only have been a single active vantage point. 
                 elif ( (gmpy.popcount(losses) == gmpy.popcount(sent_pkts) ) and (gmpy.popcount(successful_resps) == 0) ):
                     # unresp_addrs.add(ipstr)
@@ -142,7 +141,7 @@ def get_resp_unresp(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, 
     prev_t_fp.close()
 
 
-def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs, dropout_addrs, antidropout_addrs):
+def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs, addr_to_status):
 
     this_t_fp = get_fp(processed_op_dir, this_t, read_bin, is_swift, "This")
 
@@ -170,11 +169,13 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
                 # NOTE: The (gmpy.popcount(successful_resps) == 0) test is for unusual cases where a vantage point may have pinged an address more than once in a round and one of the responses was a loss but the other was successful. For a dropout, we want *all* pings to be unresponsive in this round.
                 if ( (gmpy.popcount(losses) == gmpy.popcount(sent_pkts) ) and (ipid in resp_addrs) and (gmpy.popcount(successful_resps) == 0) ):
                     # dropout_addrs.add(ipstr)
-                    dropout_addrs.add(ipid)
+                    addr_to_status[ipid] = 0
+                    # dropout_addrs.add(ipid)
 
                 elif ( (gmpy.popcount(successful_resps) > 0) and (ipid in unresp_addrs) ):
                     # antidropout_addrs.add(ipstr)
-                    antidropout_addrs.add(ipid)
+                    addr_to_status[ipid] = 2
+                    # antidropout_addrs.add(ipid)
                     
     else:
         
@@ -191,16 +192,18 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
 
             # If all pings sent in this round were lost and this address was responsive at the beginning of this round, then this address experienced a dropout.
             if losses == sent_pkts and ipstr in resp_addrs:
-                dropout_addrs.add(ipstr)
+                addr_to_status[ipstr] = 0
+                # dropout_addrs.add(ipstr)
 
             # If the address had been completely unresponsive last round but is responsive now, then this is a newly responsive address.
             elif successful_resps > 0 and ipstr in unresp_addrs:
-                antidropout_addrs.add(ipstr)
+                addr_to_status[ipstr] = 2
+                # antidropout_addrs.add(ipstr)
 
     this_t_fp.close()
 
             
-def write_op(processed_op_dir, this_t, this_t_round_end, dropout_addrs, resp_addrs, antidropout_addrs):
+def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs):
 
     if IS_COMPRESSED == 1:
         op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
@@ -208,28 +211,42 @@ def write_op(processed_op_dir, this_t, this_t_round_end, dropout_addrs, resp_add
     else:
         op_fname = '{0}/{1}_to_{2}/rda'.format(processed_op_dir, this_t, this_t_round_end)
         op_fp = open(op_fname, 'w')
-    
-    for addr in dropout_addrs:
-        if read_bin == 1:
-            ipstr = socket.inet_ntoa(struct.pack('!L', addr))
-        else:
-            ipstr = addr
-        op_fp.write("{0} 0\n".format(ipstr) )
 
-    for addr in resp_addrs:
-        if read_bin == 1:
-            ipstr = socket.inet_ntoa(struct.pack('!L', addr))
-        else:
-            ipstr = addr
-        # if addr not in dropout_addrs:
-        op_fp.write("{0} 1\n".format(ipstr) )
+    this_roun_addr_to_status = addr_to_status[roun]
 
-    for addr in antidropout_addrs:
+    to_write_addr_set = this_roun_addr_to_status.keys() | resp_addrs[roun-1]
+
+    for addr in sorted(to_write_addr_set):
+        
         if read_bin == 1:
             ipstr = socket.inet_ntoa(struct.pack('!L', addr))
         else:
             ipstr = addr
-        op_fp.write("{0} 2\n".format(ipstr) )
+        
+        if addr in this_roun_addr_to_status:
+            if this_roun_addr_to_status[addr] == 0:
+                op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
+                op_fp.write("{0} 0\n".format(ipstr) ) # The address experienced a dropout this round
+            else:
+                op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
+
+        else:
+            op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
+                
+    # for addr in this_roun_addr_to_status:
+    #     if read_bin == 1:
+    #         ipstr = socket.inet_ntoa(struct.pack('!L', addr))
+    #     else:
+    #         ipstr = addr
+    #     op_fp.write("{0} {1}\n".format(ipstr, this_roun_addr_to_status[addr]) )
+
+    # for addr in resp_addrs[roun-1]:
+    #     if read_bin == 1:
+    #         ipstr = socket.inet_ntoa(struct.pack('!L', addr))
+    #     else:
+    #         ipstr = addr
+    #     # if addr not in dropout_addrs:
+    #     op_fp.write("{0} 1\n".format(ipstr) )
 
     op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
@@ -241,6 +258,7 @@ is_swift = int(sys.argv[4]) # Whether we are reading input files from the Swift 
 
 IS_COMPRESSED = 1
 FAST_MODE = 1
+num_adjacent_rounds = 0
 ROUND_SECS = 600 # Perhaps define this in the zeusping_helpers header file
 this_t_round_end = this_t + ROUND_SECS
 
@@ -257,25 +275,37 @@ else:
 
 setup_stuff(processed_op_dir, this_t, this_t_round_end)
 
-# Get unresponsive and responsive addresses using the previous round.
-# responsive addresses are all the addresses that have the potential to dropout in this round.
-# unresponsive addresses are all the addresses that have the potential to anti-dropout in this round.
 
-unresp_addrs = set() # These are the set of unresponsive addresses at the beginning of this_t (i.e., they were unresponsive in the previous round)
-resp_addrs = set() # These are the set of responsive addresses at the beginning of this_t (i.e., they were responsive in the previous round)
-get_resp_unresp(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs)
+unresp_addrs = {} # These are the set of unresponsive addresses at the beginning of a round (i.e., they were unresponsive in the previous round)
+resp_addrs = {} # These are the set of responsive addresses at the beginning of a round (i.e., they were responsive in the previous round)
+addr_to_status = {}
 
-# print len(unresp_addrs)
+for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
 
-# Get dropout and antidropout addresses using this round.
-# dropout addresses are all the addresses that responded last round but are unresponsive this round.
-# antidropout addresses are all the addresses that were unresponsive last round but responded this round.
+    # Get unresponsive and responsive addresses using the previous round.
+    # responsive addresses are all the addresses that have the potential to dropout in this round.
+    # unresponsive addresses are all the addresses that have the potential to anti-dropout in this round.
 
-dropout_addrs = set()
-antidropout_addrs = set()
+    if roun not in unresp_addrs:
+        unresp_addrs[roun-1] = set()
+    if roun not in resp_addrs:
+        resp_addrs[roun-1] = set()
 
-get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs, dropout_addrs, antidropout_addrs)
+    get_resp_unresp(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1])
 
-# print len(newresp_addrs)
+    # print len(unresp_addrs)
 
-write_op(processed_op_dir, this_t, this_t_round_end, dropout_addrs, resp_addrs, antidropout_addrs)
+    # Get dropout and antidropout addresses using this round.
+    # dropout addresses are all the addresses that responded last round but are unresponsive this round.
+    # antidropout addresses are all the addresses that were unresponsive last round but responded this round.
+
+    # dropout_addrs = set()
+    # antidropout_addrs = set()
+
+    if roun not in addr_to_status:
+        addr_to_status[roun] = {}
+
+    get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun])
+
+
+write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs)
