@@ -36,16 +36,14 @@ if is_compressed == 1:
 else:
     addr_metadata_fp = open(addr_metadata_fname)
 for line in addr_metadata_fp:
-    parts = line.strip().split()
+    parts = line.strip().split('|')
     ip = parts[0].strip()
     asn = parts[4].strip()
-    county_id = parts[5].strip()
+    loc1 = parts[5].strip()
+    loc2 = parts[6].strip()
+    loc2_name = parts[7].strip()
     
-    county_name = ''
-    for elem in parts[6:]:
-        county_name += '{0} '.format(elem)
-
-    ip_to_metadata[ip] = {"asn" : asn, "county_id" : county_id, "county_name" : county_name}
+    ip_to_metadata[ip] = {"asn" : asn, "loc1_id" : loc1, "loc2_id" : loc2, "loc2_name" : loc2_name}
 
 
 def split_ips(ip):
@@ -104,22 +102,21 @@ for line in inp_fp:
             if s24 not in s24_to_status_set[0]:
                 s24_to_status_set[0][s24] =  {"d" : set(), "r" : set(), "a": set()}
                 
-            # county_id = ip_to_metadata[addr]["county_id"]
-            county_name = ip_to_metadata[addr]["county_name"]            
+            # loc2_id = ip_to_metadata[addr]["loc2_id"]
+            loc2_name = ip_to_metadata[addr]["loc2_name"]
             
-            # if county_id not in s24_to_status[s24]:
-            if county_name not in s24_to_status[s24]:
-                # s24_to_status[s24][county_id] = {"r" : 0, "d" : 0, "a" : 0}                
-                s24_to_status[s24][county_name] = {"r" : 0, "d" : 0, "a" : 0}
+            # if loc2_id not in s24_to_status[s24]:
+            if loc2_name not in s24_to_status[s24]:
+                # s24_to_status[s24][loc2_id] = {"r" : 0, "d" : 0, "a" : 0}                
+                s24_to_status[s24][loc2_name] = {"r" : 0, "d" : 0, "a" : 0}
                 
-            # s24_to_status[s24][county_id][status] += 1
-            s24_to_status[s24][county_name][status] += 1
+            # s24_to_status[s24][loc2_id][status] += 1
+            s24_to_status[s24][loc2_name][status] += 1
 
             s24_to_status_set[0][s24][status].add(addr)
 
             if status == 'd':
                 dropout_s24s.add(s24)
-
 
 
 for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
@@ -192,23 +189,23 @@ except subprocess.CalledProcessError:
 
 op_s24_fname = './data/{0}/{1}_s24'.format(op_dir, reqd_asn)
 op_s24_fp = open(op_s24_fname, 'w')
-op_county_s24_fname = './data/{0}/{1}_county_s24'.format(op_dir, reqd_asn)
-op_county_s24_fp = open(op_county_s24_fname, 'w')
+op_loc2_s24_fname = './data/{0}/{1}_loc2_s24'.format(op_dir, reqd_asn)
+op_loc2_s24_fp = open(op_loc2_s24_fname, 'w')
 
 # for s24 in dropout_s24s:
 for s24 in s24_to_status:
     total_r = 0
     total_d = 0
     total_a = 0
-    for county_id in s24_to_status[s24]:
-        r = s24_to_status[s24][county_id]["r"]
-        d = s24_to_status[s24][county_id]["d"]
-        a = s24_to_status[s24][county_id]["a"]
+    for loc2_id in s24_to_status[s24]:
+        r = s24_to_status[s24][loc2_id]["r"]
+        d = s24_to_status[s24][loc2_id]["d"]
+        a = s24_to_status[s24][loc2_id]["a"]
         total_r += r
         total_d += d
         total_a += a
         
-        op_county_s24_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(s24, county_id, d, r, a) )
+        op_loc2_s24_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(s24, loc2_id, d, r, a) )
 
     op_s24_fp.write("{0}|{1}|{2}|{3}\n".format(s24, total_d, total_r, total_a ) )    
 
