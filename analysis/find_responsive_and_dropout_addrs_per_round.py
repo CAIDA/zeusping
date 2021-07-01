@@ -16,6 +16,8 @@ import shlex
 import gmpy
 import gc
 from collections import defaultdict
+import radix
+import pyipmeta
 
 zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
 sys.path.append(zeusping_utils_path + "/utils")
@@ -215,9 +217,35 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
 
     this_t_fp.close()
 
-            
+
+def init_dicts(loc1_asn_to_status, loc2_asn_to_status, loc1, loc2, asn):
+    if loc1 not in loc1_asn_to_status:
+        loc1_asn_to_status[loc1] = {}
+
+    if asn not in loc1_asn_to_status[loc1]:
+        loc1_asn_to_status[loc1][asn] = defaultdict(int)
+
+    if loc2 not in loc2_asn_to_status:
+        loc2_asn_to_status[loc2] = {}
+
+    if asn not in loc2_asn_to_status[loc2]:
+        loc2_asn_to_status[loc2][asn] = defaultdict(int)
+
+
+    
 def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs):
 
+    loc1_asn_to_status = {}
+    loc2_asn_to_status = {}
+
+    # TODO!
+    # Copy logic from swift_process_round_wandiocat.py to update timeseries values:
+    # For loc1_asn_to_status: "responsive", "dropout", "antidropout"
+    # For loc1_asn_to_status: "responsive_mr", "dropout_mr", "antidropout_mr"
+    # For /24s, I'll write a per-AS file. Each file will contain:
+    # </24> <dropout_mr> <responsive_mr> <antidropout_mr>, but where the three values will be in binary (with bit offsets indicating whether a particular address in the /24 experienced a dropout, was responsive, or had an anti-dropout).
+    # And maybe I'll have to write cleaner functions this time around
+    
     if IS_COMPRESSED == 1:
         rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
         rda_op_fp = wandio.open(rda_op_fname, 'w')
@@ -229,37 +257,83 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
 
     to_write_addr_set = this_roun_addr_to_status.keys() | resp_addrs[-1]
 
+    ip_to_asn = {}
+    ip_to_loc = {}
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
         ipstr = socket.inet_ntoa(struct.pack('!L', addr))
         # else:
         #     ipstr = addr
+
+        # Find ASN and loc details
+        asn = 'UNK'
+        # Find ip_to_as, ip_to_loc
+        rnode = rtree.search_best(ipstr)
+        if rnode is None:
+            asn = 'UNK'
+        else:
+            asn = rnode.data["origin"]
+        ip_to_asn[ipstr] = asn
+
+        # Let loc1 refer to the first-level location and loc2 refer to the second-level location
+        # In the US, loc1 is state and loc2 is county
+        # In non-US countries, loc1 will be country and loc2 will be region
+        # At this point, we will obtain just the ids of loc1 and loc2. We will use other dictionaries to obtain the name and fqdn
+        loc1 = 'UNKLOC1'
+        loc2 = 'UNKLOC2'
+        res = ipm.lookup(ipstr)
+
+        if len(res) != 0:
+            ctry_code = res[0]['country_code']
+
+            if is_US is True:
+                # Find US state and county
+                if ctry_code != 'US':
+                    continue
+
+                loc1 = str(res[0]['polygon_ids'][1]) # This is for US state info
+                loc2 = str(res[0]['polygon_ids'][0]) # This is for county info
+
+            else:
+                # Find region
+                loc1 = ctry_code
+                loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
+        ip_to_loc[ipstr] = [loc1, loc2]
+
+        # https://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries
+        # https://stackoverflow.com/questions/651794/whats-the-best-way-to-initialize-a-dict-of-dicts-in-python
+        # I like the following approach:
+
+        # def nested_dict_factory(): 
+        #   return defaultdict(int)
+        # def nested_dict_factory2(): 
+        #   return defaultdict(nested_dict_factory)
+        # db = defaultdict(nested_dict_factory2)
         
         if addr in this_roun_addr_to_status:
             if this_roun_addr_to_status[addr] == 0:
+
+                loc1_asn_to_status[loc1][asn]["r"] += 1
+                loc2_asn_to_status[loc2][asn]["r"] += 1
                 rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
+                
+                loc1_asn_to_status[loc1][asn]["d"] += 1
+                loc2_asn_to_status[loc2][asn]["d"] += 1
                 rda_op_fp.write("{0} 0\n".format(ipstr) ) # The address experienced a dropout this round
             else:
+                loc1_asn_to_status[loc1][asn]["r"] += 1
+                loc2_asn_to_status[loc2][asn]["r"] += 1
                 rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
 
         else:
+            loc1_asn_to_status[loc1][asn]["r"] += 1
+            loc2_asn_to_status[loc2][asn]["r"] += 1
             rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
 
-    # for addr in this_roun_addr_to_status:
-    #     if read_bin == 1:
-    #         ipstr = socket.inet_ntoa(struct.pack('!L', addr))
-    #     else:
-    #         ipstr = addr
-    #     rda_op_fp.write("{0} {1}\n".format(ipstr, this_roun_addr_to_status[addr]) )
 
-    # for addr in resp_addrs[-1]:
-    #     if read_bin == 1:
-    #         ipstr = socket.inet_ntoa(struct.pack('!L', addr))
-    #     else:
-    #         ipstr = addr
-    #     # if addr not in dropout_addrs:
-    #     rda_op_fp.write("{0} 1\n".format(ipstr) )
+        
+        
 
     rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
@@ -283,6 +357,8 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
 
         if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
             # addr_to_multiround_status[addr] = 0
+            # mask = 1<<s24_octet
+            # s24_to_status[s24]['d'][addr] |= (mask)
             rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
         elif( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
             # addr_to_multiround_status[addr] = 2
@@ -296,10 +372,52 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
             
 
-this_t = int(sys.argv[1])
-campaign = sys.argv[2]
+campaign = sys.argv[1]
+this_t = int(sys.argv[2])
 read_bin = int(sys.argv[3]) # If read_bin == 1, we are reading binary input from resps_per_round.gz. Else we are reading ascii input from resps_per_addr.gz
 is_swift = int(sys.argv[4]) # Whether we are reading input files from the Swift cluster or from disk
+
+pfx2AS_fn = sys.argv[4]
+netacq_date = sys.argv[5]
+scope = sys.argv[6]
+
+idx_to_loc1_name = {}
+idx_to_loc1_fqdn = {}
+idx_to_loc1_code = {}
+
+idx_to_loc2_name = {}
+idx_to_loc2_fqdn = {}
+idx_to_loc2_code = {}
+
+if scope == 'US':
+    is_US = True
+    # loc1 is regions, loc2 is counties
+    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, py_ver=2)
+    counties_fname = '/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(counties_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
+    
+else:
+    is_US = False
+    # loc1 is countries, loc2 is regions
+
+    ctry_code_to_fqdn = {}
+    ctry_code_to_name = {}
+    countries_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(countries_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, ctry_code_to_fqdn=ctry_code_to_fqdn, ctry_code_to_name=ctry_code_to_name, py_ver=2)
+    
+    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
+
+    
+rtree = radix.Radix()
+rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
+
+# Load pyipmeta in order to perform geo lookups per address
+provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+ipm = pyipmeta.IpMeta(provider="netacq-edge",
+                      provider_config=provider_config_str)
+
 
 IS_COMPRESSED = 1
 FAST_MODE = 1
