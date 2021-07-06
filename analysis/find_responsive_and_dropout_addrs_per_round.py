@@ -246,67 +246,108 @@ def init_dicts(loc1_asn_to_status, loc2_asn_to_status, loc1, loc2, asn):
     if asn not in loc2_asn_to_status[loc2]:
         loc2_asn_to_status[loc2][asn] = defaultdict(int)
 
-        
-def write_ts_file(this_t, this_t_round_end, write_mode, loc1_asn_to_status, loc2_asn_to_status):
 
-    if write_mode == "sr": # We're writing a single round's output
-        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t, this_t_round_end)
-    elif write_mode == "mr": # We're writing multiple rounds' output
-        ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t, this_t_round_end)
+# is_loc1 indicates whether we are writing the larger administrative subdivision
+# if is_loc1 is True, then the larger administrative subdivision is country (if is_US == False) and U.S. state (if is_US == True). 
+def write_ts_file(ts_fp, loc_asn_to_status, is_loc1):
 
-    ts_fp = open(ts_fname, 'w')
-
-    loc1_to_status = {}
+    loc_to_status = {}
     asn_to_status = {}
     
-    for loc1 in loc1_asn_to_status:
-        for asn in loc1_asn_to_status[loc1]:
+    for loc in loc_asn_to_status:
+        for asn in loc_asn_to_status[loc]:
 
-            if is_US is True:
-                loc1_fqdn = idx_to_loc1_fqdn[loc1]
-                loc1_name = idx_to_loc1_name[loc1]
+            if is_loc1 is True:
+                if is_US is True:
+                    loc_fqdn = idx_to_loc1_fqdn[loc]
+                    loc_name = idx_to_loc1_name[loc]
+                else:
+                    loc_fqdn = ctry_code_to_fqdn[loc]
+                    loc_name = ctry_code_to_name[loc]
             else:
-                loc1_fqdn = ctry_code_to_fqdn[loc1]
-                loc1_name = ctry_code_to_name[loc1]
+                loc_fqdn = idx_to_loc2_fqdn[loc]
+                loc_name = idx_to_loc2_name[loc]
                 
-            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc1_fqdn, asn)
-            this_d = loc1_asn_to_status[loc1][asn]
+            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc_fqdn, asn)
+            this_d = loc_asn_to_status[loc][asn]
             n_d = this_d["d"]
             n_r = this_d["r"]
             n_a = this_d["a"]
-            custom_name = "{0}-{1}".format(loc1_name, asn)
+            custom_name = "{0}-{1}".format(loc_name, asn)
             ts_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(ioda_key, custom_name, n_d, n_r, n_a) )
 
-            if loc1 not in loc1_to_status:
-                loc1_to_status[loc1] = {"d" : 0, "r" : 0, "a" : 0}
+            if loc not in loc_to_status:
+                loc_to_status[loc] = {"d" : 0, "r" : 0, "a" : 0}
 
-            loc1_to_status[loc1]["d"] += n_d
-            loc1_to_status[loc1]["r"] += n_r
-            loc1_to_status[loc1]["a"] += n_a
+            loc_to_status[loc]["d"] += n_d
+            loc_to_status[loc]["r"] += n_r
+            loc_to_status[loc]["a"] += n_a
 
-            # TODO: Resume from here. Also see if you can fold in loc2_asn_to_status stuff here in the same function
-            if asn not in asn_to_status:
-                
+            # Calculate stats per ASN only for loc1 and not for loc2 (since the results would be identical in any case)
+            if is_loc1 is True:
+                if asn not in asn_to_status:
+                    asn_to_status[asn] = {"d" : 0, "r" : 0, "a" : 0}
+
+                asn_to_status[asn]["d"] += n_d
+                asn_to_status[asn]["r"] += n_r
+                asn_to_status[asn]["a"] += n_a
+
+    for loc in loc_to_status:
         
-    
+        if is_loc1 is True:
+            if is_US is True:
+                loc_fqdn = idx_to_loc1_fqdn[loc]
+                loc_name = idx_to_loc1_name[loc]
+            else:
+                loc_fqdn = ctry_code_to_fqdn[loc]
+                loc_name = ctry_code_to_name[loc]
+        else:
+            loc_fqdn = idx_to_loc2_fqdn[loc]
+            loc_name = idx_to_loc2_name[loc]
+
+        ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc_fqdn)
+        this_d = loc_to_status[loc]
+
+        n_d = this_d["d"]
+        n_r = this_d["r"]
+        n_a = this_d["a"]
+        custom_name = "{0}".format(loc_name)
+        ts_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(ioda_key, custom_name, n_d, n_r, n_a) )
+
+    if is_loc1 is True:
+        # TODO: Should I only perhaps write when is_US is False? Won't I be clobbering values in the U.S., when I write into AS7922 from multiple ZeusPing shards...?
+        for asn in asn_to_status:
+            ioda_key = 'projects.zeusping.test1.routing.asn.{0}'.format(asn)
+            this_d = asn_to_status[asn]
+            n_d = this_d["d"]
+            n_r = this_d["r"]
+            n_a = this_d["a"]
+
+            custom_name = "{0}".format(asn)
+            ts_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(ioda_key, custom_name, n_d, n_r, n_a) )
+            
+        
 def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs):
 
     loc1_asn_to_status = defaultdict(nested_dict_factory)
     loc2_asn_to_status = defaultdict(nested_dict_factory)
 
     # TODO!
-    # Copy logic from swift_process_round_wandiocat.py to update timeseries values:
-    # For loc1_asn_to_status: "responsive", "dropout", "antidropout"
-    # For loc1_asn_to_status: "responsive_mr", "dropout_mr", "antidropout_mr"
-    # For /24s, I'll write a per-AS file. Each file will contain:
+    # For /24s, I'll write a single file. Each file will contain:
     # </24> <dropout_mr> <responsive_mr> <antidropout_mr>, but where the three values will be in binary (with bit offsets indicating whether a particular address in the /24 experienced a dropout, was responsive, or had an anti-dropout).
     # And maybe I'll have to write cleaner functions this time around
     
     if IS_COMPRESSED == 1:
-        rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
+        if IS_TEST == 1:
+            rda_op_fname = '{0}/{1}_to_{2}/rda_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
+        else:
+            rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
         rda_op_fp = wandio.open(rda_op_fname, 'w')
     else:
-        rda_op_fname = '{0}/{1}_to_{2}/rda'.format(processed_op_dir, this_t, this_t_round_end)
+        if IS_TEST == 1:
+            rda_op_fname = '{0}/{1}_to_{2}/rda_test'.format(processed_op_dir, this_t, this_t_round_end)
+        else:
+            rda_op_fname = '{0}/{1}_to_{2}/rda'.format(processed_op_dir, this_t, this_t_round_end)
         rda_op_fp = open(rda_op_fname, 'w')
 
     this_roun_addr_to_status = addr_to_status[0]
@@ -380,18 +421,30 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
 
     rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
-    write_ts_file(this_t, this_t_round_end, "sr", loc1_asn_to_status, loc2_asn_to_status)
+    if IS_TEST == 1:
+        ts_fname = '{0}/{1}_to_{2}/ts_rda_test'.format(processed_op_dir, this_t, this_t_round_end)
+    else:
+        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t, this_t_round_end)
+    ts_fp = open(ts_fname, 'w')
+    write_ts_file(ts_fp, loc1_asn_to_status)
+    write_ts_file(ts_fp, loc2_asn_to_status)
+    ts_fp.close()
 
-    # TODO: Write loc1_asn_to_status and loc2_asn_to_status
-
+    # Reinitialize loc1_asn_to_status and loc2_asn_to_status for mr since we no longer need the sr versions. Hopefully, this frees the memory.
     loc1_asn_to_status = defaultdict(nested_dict_factory)
     loc2_asn_to_status = defaultdict(nested_dict_factory)
 
     if IS_COMPRESSED == 1:
-        rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t, this_t_round_end)
+        if IS_TEST == 1:
+            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
+        else:
+            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t, this_t_round_end)
         rda_multiround_op_fp = wandio.open(rda_multiround_op_fname, 'w')
     else:
-        rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround'.format(processed_op_dir, this_t, this_t_round_end)
+        if IS_TEST == 1:
+            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test'.format(processed_op_dir, this_t, this_t_round_end)
+        else:
+            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround'.format(processed_op_dir, this_t, this_t_round_end)
         rda_multiround_op_fp = open(rda_multiround_op_fname, 'w')
 
     resp_all_rounds_addr_set = resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
@@ -406,7 +459,11 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
         # else:
         #     ipstr = addr
 
-        s24, oct4 = find_s24(addr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow.
+        # TODO: Account for ipstr not having a value in these dicts, return default values
+        asn = ip_to_asn[ipstr]
+        [loc1, loc2] = ip_to_loc[ipstr]
+
+        s24, oct4 = find_s24(addr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. # TODO: I will need some other way of representing a 32-byte (256 bit) integer representing the status of each /24. 
 
         if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
             # addr_to_multiround_status[addr] = 0
@@ -433,6 +490,27 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
 
     rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
+
+    if IS_TEST == 1:
+        ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
+    else:
+        ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t, this_t_round_end)
+    ts_fp = open(ts_fname, 'w')
+    write_ts_file(ts_fp, loc1_asn_to_status)
+    write_ts_file(ts_fp, loc2_asn_to_status)
+    ts_fp.close()
+
+    if IS_TEST == 1:
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
+    else:
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr'.format(processed_op_dir, this_t, this_t_round_end)
+    s24_fp = open(s24_fname, 'w') # TODO: Write in binary once we figure out how to
+
+    for s24 in s24_to_mr_status:
+        this_d = s24_to_mr_status[s24]
+        s24_fp.write("{0}|{1}|{2}|{3}\n".format(s24, this_d['d'], this_d['r'], this_d['a']) )
+    
+    s24_fp.close()
             
 
 campaign = sys.argv[1]
@@ -484,6 +562,7 @@ ipm = pyipmeta.IpMeta(provider="netacq-edge",
 
 IS_COMPRESSED = 1
 FAST_MODE = 1
+IS_TEST = 1
 num_adjacent_rounds = 1
 ROUND_SECS = 600 # Perhaps define this in the zeusping_helpers header file
 this_t_round_end = this_t + ROUND_SECS
