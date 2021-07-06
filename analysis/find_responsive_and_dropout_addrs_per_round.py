@@ -32,6 +32,22 @@ else:
     py_ver = 3
 
 
+def split_ips(ip):
+    parts = ip.strip().split('.')
+    # print parts
+    oct1 = parts[0].strip()
+    oct2 = parts[1].strip()
+    oct3 = parts[2].strip()
+    oct4 = parts[3].strip()
+
+    return oct1, oct2, oct3, oct4
+
+
+def find_s24(ipv4_addr):
+    oct1, oct2, oct3, oct4 = split_ips(ipv4_addr)
+    return "{0}.{1}.{2}.0/24".format(oct1, oct2, oct3), oct4
+
+
 def setup_stuff(processed_op_dir, this_t, this_t_round_end):
     mkdir_cmd = 'mkdir -p {0}/{1}_to_{2}/'.format(processed_op_dir, this_t, this_t_round_end)
     args = shlex.split(mkdir_cmd)
@@ -182,10 +198,9 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
                     addr_to_status[ipid] = 2
                     # antidropout_addrs.add(ipid)
 
-                if resp_addrs_this_round != None:
+                if resp_addrs_this_round is not None:
                     if gmpy.popcount(successful_resps) > 0:
                         resp_addrs_this_round.add(ipid)
-
                     
     else:
         
@@ -231,12 +246,53 @@ def init_dicts(loc1_asn_to_status, loc2_asn_to_status, loc1, loc2, asn):
     if asn not in loc2_asn_to_status[loc2]:
         loc2_asn_to_status[loc2][asn] = defaultdict(int)
 
+        
+def write_ts_file(this_t, this_t_round_end, write_mode, loc1_asn_to_status, loc2_asn_to_status):
 
+    if write_mode == "sr": # We're writing a single round's output
+        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t, this_t_round_end)
+    elif write_mode == "mr": # We're writing multiple rounds' output
+        ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t, this_t_round_end)
+
+    ts_fp = open(ts_fname, 'w')
+
+    loc1_to_status = {}
+    asn_to_status = {}
+    
+    for loc1 in loc1_asn_to_status:
+        for asn in loc1_asn_to_status[loc1]:
+
+            if is_US is True:
+                loc1_fqdn = idx_to_loc1_fqdn[loc1]
+                loc1_name = idx_to_loc1_name[loc1]
+            else:
+                loc1_fqdn = ctry_code_to_fqdn[loc1]
+                loc1_name = ctry_code_to_name[loc1]
+                
+            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc1_fqdn, asn)
+            this_d = loc1_asn_to_status[loc1][asn]
+            n_d = this_d["d"]
+            n_r = this_d["r"]
+            n_a = this_d["a"]
+            custom_name = "{0}-{1}".format(loc1_name, asn)
+            ts_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(ioda_key, custom_name, n_d, n_r, n_a) )
+
+            if loc1 not in loc1_to_status:
+                loc1_to_status[loc1] = {"d" : 0, "r" : 0, "a" : 0}
+
+            loc1_to_status[loc1]["d"] += n_d
+            loc1_to_status[loc1]["r"] += n_r
+            loc1_to_status[loc1]["a"] += n_a
+
+            # TODO: Resume from here. Also see if you can fold in loc2_asn_to_status stuff here in the same function
+            if asn not in asn_to_status:
+                
+        
     
 def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs):
 
-    loc1_asn_to_status = {}
-    loc2_asn_to_status = {}
+    loc1_asn_to_status = defaultdict(nested_dict_factory)
+    loc2_asn_to_status = defaultdict(nested_dict_factory)
 
     # TODO!
     # Copy logic from swift_process_round_wandiocat.py to update timeseries values:
@@ -299,18 +355,9 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
                 # Find region
                 loc1 = ctry_code
                 loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
+                
         ip_to_loc[ipstr] = [loc1, loc2]
 
-        # https://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries
-        # https://stackoverflow.com/questions/651794/whats-the-best-way-to-initialize-a-dict-of-dicts-in-python
-        # I like the following approach:
-
-        # def nested_dict_factory(): 
-        #   return defaultdict(int)
-        # def nested_dict_factory2(): 
-        #   return defaultdict(nested_dict_factory)
-        # db = defaultdict(nested_dict_factory2)
-        
         if addr in this_roun_addr_to_status:
             if this_roun_addr_to_status[addr] == 0:
 
@@ -331,11 +378,14 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
             loc2_asn_to_status[loc2][asn]["r"] += 1
             rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
 
-
-        
-        
-
     rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
+
+    write_ts_file(this_t, this_t_round_end, "sr", loc1_asn_to_status, loc2_asn_to_status)
+
+    # TODO: Write loc1_asn_to_status and loc2_asn_to_status
+
+    loc1_asn_to_status = defaultdict(nested_dict_factory)
+    loc2_asn_to_status = defaultdict(nested_dict_factory)
 
     if IS_COMPRESSED == 1:
         rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t, this_t_round_end)
@@ -348,6 +398,7 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     to_write_addr_set = addr_to_status[-1].keys() | this_roun_addr_to_status.keys() | addr_to_status[1].keys() | resp_all_rounds_addr_set
 
     # addr_to_multiround_status = {}
+    s24_to_mr_status = defaultdict(nested_dict_factory_int)
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
@@ -355,16 +406,28 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
         # else:
         #     ipstr = addr
 
+        s24, oct4 = find_s24(addr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow.
+
         if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
             # addr_to_multiround_status[addr] = 0
-            # mask = 1<<s24_octet
-            # s24_to_status[s24]['d'][addr] |= (mask)
+            loc1_asn_to_status[loc1][asn]["d"] += 1
+            loc2_asn_to_status[loc2][asn]["d"] += 1
+            mask = 1<<oct4
+            s24_to_mr_status[s24]['d'] |= (mask)
             rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
-        elif( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
+        elif ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
             # addr_to_multiround_status[addr] = 2
+            loc1_asn_to_status[loc1][asn]["a"] += 1
+            loc2_asn_to_status[loc2][asn]["a"] += 1
+            mask = 1<<oct4
+            s24_to_mr_status[s24]['a'] |= (mask)
             rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
         elif addr in resp_all_rounds_addr_set:
             # addr_to_multiround_status[addr] = 1
+            loc1_asn_to_status[loc1][asn]["r"] += 1
+            loc2_asn_to_status[loc2][asn]["r"] += 1
+            mask = 1<<oct4
+            s24_to_mr_status[s24]['r'] |= (mask)
             rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
             
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
@@ -424,6 +487,14 @@ FAST_MODE = 1
 num_adjacent_rounds = 1
 ROUND_SECS = 600 # Perhaps define this in the zeusping_helpers header file
 this_t_round_end = this_t + ROUND_SECS
+
+# Define nested_dicts for loc_asn_to_status files (required for generating timeseries)
+def nested_dict_factory_int(): 
+  return defaultdict(int)
+
+def nested_dict_factory(): 
+  return defaultdict(nested_dict_factory_int)
+
 
 if read_bin == 1:
     struct_fmt = struct.Struct("I 5H")
