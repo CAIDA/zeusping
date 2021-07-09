@@ -8,6 +8,7 @@ import os
 import struct
 import socket
 
+ROUND_SECS = 600
 
 class FileEmptyError(Exception):
     def __init__(self, value):
@@ -16,7 +17,7 @@ class FileEmptyError(Exception):
         return self.value
 
 
-def load_radix_tree(pfx2AS_fn, rtree):
+def load_radix_tree(pfx2AS_fn, rtree, py_ver=2):
     # try:
     #     if os.stat(pfx2AS_fn).st_size == 0:
     #         raise FileEmptyError('file is empty')
@@ -47,7 +48,9 @@ def load_radix_tree(pfx2AS_fn, rtree):
         sys.exit(1)
 
     with proc.stdout:
-        for line in iter(proc.stdout.readline, b''):        
+        for line in iter(proc.stdout.readline, b''):
+            if py_ver == 3:
+                line = line.decode()
             if re.match(r'#', line): continue
             fields = line.strip().split()
             if len(fields) != 3: continue
