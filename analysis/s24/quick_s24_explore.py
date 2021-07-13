@@ -212,6 +212,9 @@ for s24 in s24_to_status:
 
 op_s24_set_fname = './data/{0}/{1}_s24_set'.format(op_dir, reqd_asn)
 op_s24_set_fp = open(op_s24_set_fname, 'w')
+op_s24_set_details_fname = './data/{0}/{1}_s24_set_details'.format(op_dir, reqd_asn)
+op_s24_set_details_fp = open(op_s24_set_details_fname, 'w')
+
 for s24 in dropout_s24s:
 
     union_d = set()
@@ -239,6 +242,20 @@ for s24 in dropout_s24s:
     # op_s24_set_fp.write("{0}\t{1}|{2}|{3}\t{4}|{5}|{6}\t".format(s24, len(s24_to_status_set[0][s24]['d']), len(s24_to_status_set[0][s24]['r']), len(s24_to_status_set[0][s24]['a']), len(union_d), len(intersection_r), len(union_a) ) )            
     op_s24_set_fp.write("{0}\t|{1}|{2}|{3}\t".format(s24, len(union_d), len(intersection_r), len(union_a) ) )
 
+    op_s24_set_details_fp.write("{0}\t".format(s24) )
+    
+    for addr in union_d:
+        op_s24_set_details_fp.write("{0}-".format(addr) )
+    op_s24_set_details_fp.write("|")
+
+    for addr in intersection_r:
+        op_s24_set_details_fp.write("{0}-".format(addr) )
+    op_s24_set_details_fp.write("|")
+
+    for addr in union_a:
+        op_s24_set_details_fp.write("{0}-".format(addr) )
+    op_s24_set_details_fp.write("|")
+
     for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
         # # We've already finished the 0th round
         # if roun == 0:
@@ -246,9 +263,23 @@ for s24 in dropout_s24s:
 
         if s24 not in s24_to_status_set[roun]:
             op_s24_set_fp.write("|0|0|0\t")
+
+            op_s24_set_details_fp.write("|||\t")
+            
         else:
             op_s24_set_fp.write("|{0}|{1}|{2}\t".format(len(s24_to_status_set[roun][s24]['d']), len(s24_to_status_set[roun][s24]['r']), len(s24_to_status_set[roun][s24]['a']) ) )
 
+            for addr in s24_to_status_set[roun][s24]['d']:
+                op_s24_set_details_fp.write("{0}-".format(addr) )
+            op_s24_set_details_fp.write("|")
+
+            for addr in s24_to_status_set[roun][s24]['r']:
+                op_s24_set_details_fp.write("{0}-".format(addr) )
+            op_s24_set_details_fp.write("|")
+
+            for addr in s24_to_status_set[roun][s24]['a']:
+                op_s24_set_details_fp.write("{0}-".format(addr) )
+            op_s24_set_details_fp.write("|")
 
     op_s24_set_fp.write("\n")
-            
+    op_s24_set_details_fp.write("\n")        
