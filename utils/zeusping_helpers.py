@@ -101,3 +101,18 @@ def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_co
             if ctry_code_to_name is not None:
                 ctry_code_to_name[loc_code] = loc_name
 
+
+def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets):
+
+    s24_pref = s24[:-4]
+    
+    curr_oct4 = 0
+    for bit_pos in range(256):
+
+        if( ( (val >> bit_pos) & 1) == 1):
+            addr = "{0}{1}".format(s24_pref, curr_oct4)
+            s24_to_dets[status].add(addr)
+
+        curr_oct4 += 1
+
+
