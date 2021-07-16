@@ -71,24 +71,51 @@ def setup_stuff(processed_op_dir, this_t, this_t_round_end):
 def get_fp(processed_op_dir, reqd_t, read_bin, is_swift, called_from):
 
     if read_bin == 1:
-        reqd_t_file = '{0}/{1}_to_{2}/resps_per_round.gz'.format(processed_op_dir, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
-        reqd_t_fp = wandio.open(reqd_t_file, 'rb')
-    
-    else:
+
+        if is_swift == 1:
+            this_t_dt = datetime.datetime.utcfromtimestamp(reqd_t)
+            round_id = "{0}_to_{1}".format(reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
+            reqd_t_file = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/round={5}/resps_per_round.gz'.format(campaign, this_t_dt.year, this_t_dt.strftime("%m"), this_t_dt.strftime("%d"), this_t_dt.strftime("%H"), round_id)
+            wandiocat_cmd = 'wandiocat swift://zeusping-processed/{0}'.format(reqd_t_file)
+        else:
+            reqd_t_file = '{0}/{1}_to_{2}/resps_per_round.gz'.format(processed_op_dir, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
+            # reqd_t_fp = wandio.open(reqd_t_file, 'rb')
+            wandiocat_cmd = 'wandiocat {0}'.format(reqd_t_file)
+
+        args = shlex.split(wandiocat_cmd)
+
+        if py_ver == 2:
+            try:
+                proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+            except:
+                sys.stderr.write("wandiocat failed for {0};\n".format(wandiocat_cmd) )
+                return
+        else:
+            try:
+                proc = subprocess.Popen(wandiocat_cmd, stdout=subprocess.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+            except:
+                sys.stderr.write("wandiocat failed for {0};\n".format(wandiocat_cmd) )
+                return
+
+        sys.stderr.write("{0}: {1}\n".format(called_from, reqd_t_file) )
+
+        return proc.stdout
             
+    else:
+
+        # NOTE: We could choose to implement the non-binary case with wandiocat as well but I'm choosing not to.
         if IS_COMPRESSED == 1:
             reqd_t_file = '{0}/{1}_to_{2}/resps_per_addr.gz'.format(processed_op_dir, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
             reqd_t_fp = wandio.open(reqd_t_file, 'r')
         else:
             reqd_t_file = '{0}/{1}_to_{2}/resps_per_addr'.format(processed_op_dir, reqd_t + zeusping_helpers.ROUND_SECS)
             reqd_t_fp = open(reqd_t_file, 'r')
-
-    sys.stderr.write("{0}: {1}\n".format(called_from, reqd_t_file) )
-
-    return reqd_t_fp
+            
+        sys.stderr.write("{0}: {1}\n".format(called_from, reqd_t_file) )
+        return reqd_t_fp
 
             
-def get_resp_unresp(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs):
+def get_resp_unresp_prev_round(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs):
 
     prev_t = this_t - zeusping_helpers.ROUND_SECS
 
@@ -190,6 +217,7 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
                 #     sys.exit(1)
 
                 # NOTE: The (gmpy.popcount(successful_resps) == 0) test is for unusual cases where a vantage point may have pinged an address more than once in a round and one of the responses was a loss but the other was successful. For a dropout, we want *all* pings to be unresponsive in this round.
+                # NOTE: There is an even more unusual case where: an address was pinged more than once from a vantage point. One of the responses was a loss, satisying (gmpy.popcount(losses) == gmpy.popcount(sent_pkts). The other response was not a successful response but an icmp error. In this (edge) case, I am going to consider the address as having experienced a dropout because it still saw a lost ping from all vantage points.
                 if ( (gmpy.popcount(losses) == gmpy.popcount(sent_pkts) ) and (ipid in resp_addrs) and (gmpy.popcount(successful_resps) == 0) ):
                     # dropout_addrs.add(ipstr)
                     addr_to_status[ipid] = 0
@@ -509,13 +537,6 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
             mask = 1<<int(oct4)
             s24_to_mr_status[s24]['d'] |= (mask)
             rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
-        elif ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
-            # addr_to_multiround_status[addr] = 2
-            loc1_asn_to_status[loc1][asn]["a"] += 1
-            loc2_asn_to_status[loc2][asn]["a"] += 1
-            mask = 1<<int(oct4)
-            s24_to_mr_status[s24]['a'] |= (mask)
-            rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
         elif addr in resp_all_rounds_addr_set:
             # addr_to_multiround_status[addr] = 1
             loc1_asn_to_status[loc1][asn]["r"] += 1
@@ -523,6 +544,14 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
             mask = 1<<int(oct4)
             s24_to_mr_status[s24]['r'] |= (mask)
             rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
+            
+        if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
+            # addr_to_multiround_status[addr] = 2
+            loc1_asn_to_status[loc1][asn]["a"] += 1
+            loc2_asn_to_status[loc2][asn]["a"] += 1
+            mask = 1<<int(oct4)
+            s24_to_mr_status[s24]['a'] |= (mask)
+            rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
             
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
 
@@ -617,7 +646,7 @@ if read_bin == 1:
 # processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
 
 if read_bin == 1:
-    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbin/'.format(campaign)
+    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest0/'.format(campaign)
 else:
     processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
 
@@ -639,7 +668,7 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
     if roun-1 not in resp_addrs:
         resp_addrs[roun-1] = set()
 
-    get_resp_unresp(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1])
+    get_resp_unresp_prev_round(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1])
 
     # print len(unresp_addrs)
 
