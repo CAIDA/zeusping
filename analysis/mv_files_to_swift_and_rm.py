@@ -63,7 +63,7 @@ def upload_to_swift_and_rm(fil, campaign, round_tstart, round_id):
     
 
 # If we are uploading dropout_resp_antidropout_addrs.gz files (output of find_responsive_and_dropout_addrs_per_round.py), then we will use this mode
-IS_RDA_MODE = 1
+IS_RDA_MODE = 0
 
 if IS_RDA_MODE == 1:
     rda_regex = re.compile('[0-9]+_to_[0-9]+.gz$')
