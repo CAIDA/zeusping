@@ -63,7 +63,12 @@ def populate_s24_to_dets(fname, typ):
             #     s24_to_dets[s24] = {"pinged" : set(), "resp" : set(), "d" : set(), "r" : set(), "a" : set()}
             # else:
             # I considered getting rid of resp() altogether but decided to keep it after all. It may be of use some day...
-            s24_to_dets[s24] = {"pinged" : set(), "resp" : set(), "d" : set(), "r" : set(), "a" : set()}
+            # if mode == "simple-oneround" or mode == "mr-oneround":
+            #     s24_to_dets[s24] = {"pinged" : set(), "resp" : set(), "d" : set(), "r" : set(), "a" : set()}
+            # else:
+            # s24_to_dets can take on keys "pinged", "resp" for all modes
+            # s24_to_dets can take on keys "d", "r", "a" for singleround modes. For multiround modes, we will use s24_to_rda_dets for "d", "r", "a"
+            s24_to_dets[s24] = defaultdict(set)
 
         s24_to_dets[s24][typ].add(addr)
 
@@ -101,25 +106,16 @@ def populate_s24_to_round_status(fname, reqd_set):
         status = parts[1].strip()
 
         s24 = find_s24(addr)
+        this_k = status_to_char[status] # this_k will be 'd', 'r', or 'a'
+        
+        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
+        # if this_k not in s24_to_dets[s24]:
+        #     s24_to_dets[s24][this_k] = set()
 
-        s24_to_dets[s24][status_to_char[status]].add(addr)
+        s24_to_dets[s24][this_k].add(addr)
 
         
-def find_set_bits_and_update(s24, val, status, s24_to_dets):
-
-    s24_pref = s24[:-4]
-    
-    curr_oct4 = 0
-    for bit_pos in range(256):
-
-        if( ( (val >> bit_pos) & 1) == 1):
-            addr = "{0}{1}".format(s24_pref, curr_oct4)
-            s24_to_dets[status].add(addr)
-
-        curr_oct4 += 1
-
-
-def populate_s24_to_round_status_mr(fname, reqd_s24_set):
+def populate_s24_to_round_status_mr(fname, reqd_s24_set, s24_to_dets):
 
     if 'gz' in fname:
         fp = wandio.open(fname)
@@ -136,19 +132,31 @@ def populate_s24_to_round_status_mr(fname, reqd_s24_set):
             continue
 
         d_addrs = int(parts[1])
-        find_set_bits_and_update(s24, d_addrs, 'd', s24_to_dets[s24])
+        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
+        # if 'd' not in s24_to_dets[s24]:
+        #     s24_to_dets[s24]['d'] = set()
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, d_addrs, 'd', s24_to_dets[s24])
         
         r_addrs = int(parts[2])
-        find_set_bits_and_update(s24, r_addrs, 'r', s24_to_dets[s24])
+        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
+        # if 'r' not in s24_to_dets[s24]:
+        #     s24_to_dets[s24]['r'] = set()
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets[s24])
 
         a_addrs = int(parts[3])
-        find_set_bits_and_update(s24, a_addrs, 'a', s24_to_dets[s24])
+        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
+        # if 'a' not in s24_to_dets[s24]:
+        #     s24_to_dets[s24]['a'] = set()
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, a_addrs, 'a', s24_to_dets[s24])
 
 
-mode = sys.argv[1] # simple for the mode where we use the output of swift_process_round_simple. # mr for the mode where we use the status of /24s calculated across multiple rounds        
+# simple-oneround for the mode where we use the output of swift_process_round_simple for single round.
+# mr-oneround for the mode where we use the status of /24s calculated across multiple rounds, but only look at a given round
+# mr-multiround where we take in a start-time and end-time, and identify all rounds where more than threshold dropouts occurred with very few responsive addresses. For those rounds, write into an output file. We will dig into those rounds individually later.
+mode = sys.argv[1]         
 pinged_ips_fname = sys.argv[2]
 resp_ips_fname = sys.argv[3]
-specific_round_fname = sys.argv[4]
+
 
 status_to_char = {"0" : "d", "1" : "r", "2" : "a"}
 s24_to_dets = {}
@@ -158,16 +166,41 @@ populate_s24_to_dets(resp_ips_fname, "resp") # Note: I am using "resp" to identi
 
 # print s24_to_dets['24.30.242.0/24']
 
-if mode == "simple":
+if mode == "simple-oneround":
+    specific_round_fname = sys.argv[4]
     populate_s24_to_round_status(specific_round_fname, pinged_addrs)
-else:
-    reqd_s24_set = find_reqd_s24_set(pinged_addrs)
-    populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set)
-
-# for s24 in s24_to_dets:
-#     sys.stdout.write("{0} {1} {2}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["resp"]) ) )
-
-for s24 in s24_to_dets:
-    # sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["resp"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]),  len(s24_to_dets[s24]["a"]) ) )
-    sys.stdout.write("{0} {1} {2} {3}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]) ) )
+    for s24 in s24_to_dets:
+        # sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["resp"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]),  len(s24_to_dets[s24]["a"]) ) )
+        sys.stdout.write("{0} {1} {2} {3}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]) ) )
     
+
+elif mode == "mr-oneround":
+    specific_round_fname = sys.argv[4]
+    reqd_s24_set = find_reqd_s24_set(pinged_addrs)
+    populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
+    for s24 in s24_to_dets:
+        # sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["resp"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]),  len(s24_to_dets[s24]["a"]) ) )
+        sys.stdout.write("{0} {1} {2} {3}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]) ) )
+
+elif mode == "mr-multiround":
+    inp_path = sys.argv[4]
+    tstart = int(sys.argv[5])
+    tend = int(sys.argv[6])
+
+    def nested_dict_factory_set(): 
+        return defaultdict(set)
+    
+    reqd_s24_set = find_reqd_s24_set(pinged_addrs)
+    for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
+        s24_to_rda_dets = defaultdict(nested_dict_factory_set)
+        this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
+        populate_s24_to_round_status_mr(this_t_fname, reqd_s24_set, s24_to_rda_dets)
+
+        sys.stderr.write("{0} processed, {1} s24s obtained\n".format(this_t, len(s24_to_rda_dets) ) )
+        
+        for s24 in s24_to_rda_dets:
+            if len(s24_to_rda_dets[s24]['d']) >= 5 and len(s24_to_rda_dets[s24]['r']) < 5:
+                sys.stdout.write("{0} {1} {2} {3} {4} {5} {6}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]) ) )
+
+        sys.stdout.flush()
+
