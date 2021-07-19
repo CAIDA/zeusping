@@ -116,3 +116,22 @@ def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets):
         curr_oct4 += 1
 
 
+def build_setofints_from_file(fname):
+    s = set()
+    fp = open(fname, 'r')
+    for line in fp:
+        idx = int(line[:-1].strip() )
+        s.add(idx)
+    fp.close()
+    return s
+
+
+def build_setofstrs_from_file(fname):
+    s = set()
+    fp = open(fname, 'r')
+    for line in fp:
+        idx = line[:-1].strip()
+        s.add(idx)
+    fp.close()        
+    return s
+
