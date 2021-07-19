@@ -452,7 +452,7 @@ def write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, rou
         ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
 
     
-    loc2_to_status = defaultdict(int)
+    loc2_to_status = defaultdict(int) # TODO: We initialize loc2_to_status as a defaultdict(int), but use it as a defaultdict(defaultdict(int))! Fix this.
     
     for loc2 in loc2_asn_to_status:
         for asn in loc2_asn_to_status[loc2]:
@@ -531,6 +531,8 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             except subprocess.CalledProcessError:
                 sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
                 sys.exit(1)
+
+        # TODO: Perhaps cp ts.gz to another temporary directory? We will keep the ts.gz files around in /scratch for a long time since they are really small and these are the files that we may like to access frequently?
             
     op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
 
