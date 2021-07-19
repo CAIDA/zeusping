@@ -14,5 +14,5 @@
 *.blg
 *.log
 *.out
-*/data*
 for_cron_scrape_*
+*_ip_to_as
