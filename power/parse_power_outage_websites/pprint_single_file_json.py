@@ -22,9 +22,9 @@ for line in fp:
 
     data = json.loads(line)
 
-    written_time = data["writing_time"]
-    dt = datetime.datetime.utcfromtimestamp(written_time)
+    # written_time = data["writing_time"]
+    # dt = datetime.datetime.utcfromtimestamp(written_time)
 
-    sys.stdout.write("Written at: {0}\n".format(dt) )
+    # sys.stdout.write("Written at: {0}\n".format(dt) )
 
     print json.dumps(data, indent=4, sort_keys=True)

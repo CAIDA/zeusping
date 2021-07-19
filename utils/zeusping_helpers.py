@@ -102,20 +102,6 @@ def load_idx_to_dicts(loc_fname, idx_to_loc_fqdn, idx_to_loc_name, idx_to_loc_co
                 ctry_code_to_name[loc_code] = loc_name
 
 
-def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets):
-
-    s24_pref = s24[:-4]
-    
-    curr_oct4 = 0
-    for bit_pos in range(256):
-
-        if( ( (val >> bit_pos) & 1) == 1):
-            addr = "{0}{1}".format(s24_pref, curr_oct4)
-            s24_to_dets[status].add(addr)
-
-        curr_oct4 += 1
-
-
 def build_setofints_from_file(fname):
     s = set()
     fp = open(fname, 'r')
@@ -134,4 +120,20 @@ def build_setofstrs_from_file(fname):
         s.add(idx)
     fp.close()        
     return s
+
+
+# TODO: This function will change once we implement a better per-s24 file representation
+def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets):
+
+    s24_pref = s24[:-4]
+    
+    curr_oct4 = 0
+    for bit_pos in range(256):
+
+        if( ( (val >> bit_pos) & 1) == 1):
+            addr = "{0}{1}".format(s24_pref, curr_oct4)
+            s24_to_dets[status].add(addr)
+
+        curr_oct4 += 1
+
 
