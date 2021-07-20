@@ -1,4 +1,36 @@
 
+#  This software is Copyright (c) 2021 The Regents of the University of
+#  California. All Rights Reserved. Permission to copy, modify, and distribute this
+#  software and its documentation for academic research and education purposes,
+#  without fee, and without a written agreement is hereby granted, provided that
+#  the above copyright notice, this paragraph and the following three paragraphs
+#  appear in all copies. Permission to make use of this software for other than
+#  academic research and education purposes may be obtained by contacting:
+#
+#  Office of Innovation and Commercialization
+#  9500 Gilman Drive, Mail Code 0910
+#  University of California
+#  La Jolla, CA 92093-0910
+#  (858) 534-5815
+#  invent@ucsd.edu
+#
+#  This software program and documentation are copyrighted by The Regents of the
+#  University of California. The software program and documentation are supplied
+#  "as is", without any accompanying services from The Regents. The Regents does
+#  not warrant that the operation of the program will be uninterrupted or
+#  error-free. The end-user understands that the program was developed for research
+#  purposes and is advised not to rely exclusively on the program for any reason.
+#
+#  IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+#  DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST
+#  PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF
+#  THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
+#  DAMAGE. THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS
+#  IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO PROVIDE
+#  MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
 # pinged_ips_fname is a file that contains all the addresses that were pinged in this AS. This file is essential since we use it to prune the set of addresses in the rda file that we will wade through.
 # resp_ips_fname is a file that contains the addresses that were *typically* responsive in this AS. I got it by setting some arbitrary thresholds (for e.g.: addresses that responded more than X times when they had been pinged Y times, using addr_to_dropouts_detailed). This file is not strictly essential for the /24-based analysis; if we use it, it gives us a sense of how many addresses in the /24 are likely to be ping-responsive
 # specific_round_fname is the rda (responsive, dropouts, anti-dropouts) file for the specific round we're interested in.
