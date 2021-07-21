@@ -89,29 +89,46 @@ def read_ts_file(this_t, ts_fname, is_swift):
             if this_t not in tstamp_to_vals:
                 tstamp_to_vals[this_t] = defaultdict(dict)
 
-            n_p = int(parts[2])
-            tstamp_to_vals[this_t][fqdn]['n_p'] = n_p
-            
-            n_r = int(parts[3])
-            tstamp_to_vals[this_t][fqdn]['n_r'] = n_r
-            
-            n_r_prev = n_r
-            prev_t = this_t - 600
-            if prev_t in tstamp_to_vals:
-                if fqdn in tstamp_to_vals[prev_t]:
-                    n_r_prev = tstamp_to_vals[prev_t][fqdn]['n_r']
-            
-            n_d = n_r_prev - n_r
-            if n_d > 0:
-                n_a = 0
-            else:
-                n_a = abs(n_d)
-                n_d = 0
-            
-            if fqdn not in op_fps:
-                op_fps[fqdn] = open("{0}/pinged_resp_per_round_{1}to{2}/pinged_resp_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
+            if is_rda == 0:
+                n_p = int(parts[2])
+                tstamp_to_vals[this_t][fqdn]['n_p'] = n_p
+
+                n_r = int(parts[3])
+                tstamp_to_vals[this_t][fqdn]['n_r'] = n_r
+
+                n_r_prev = n_r
+                prev_t = this_t - 600
+                if prev_t in tstamp_to_vals:
+                    if fqdn in tstamp_to_vals[prev_t]:
+                        n_r_prev = tstamp_to_vals[prev_t][fqdn]['n_r']
+
+                n_d = n_r_prev - n_r
+                if n_d > 0:
+                    n_a = 0
+                else:
+                    n_a = abs(n_d)
+                    n_d = 0
+
+                if fqdn not in op_fps:
+                    op_fps[fqdn] = open("{0}/pinged_resp_per_round_{1}to{2}/pinged_resp_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
+
+                op_fps[fqdn].write("{0}|{1}|{2}|{3}|{4}|{5}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), n_p, n_d, n_r, n_a) )
+
+            else: # is_rda
+
+                n_d = int(parts[2])
+                tstamp_to_vals[this_t][fqdn]['n_d'] = n_d
                 
-            op_fps[fqdn].write("{0}|{1}|{2}|{3}|{4}|{5}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), n_p, n_d, n_r, n_a) )
+                n_r = int(parts[3])
+                tstamp_to_vals[this_t][fqdn]['n_r'] = n_r
+                
+                n_a = int(parts[4])
+                tstamp_to_vals[this_t][fqdn]['n_a'] = n_a
+
+                if fqdn not in op_fps:
+                    op_fps[fqdn] = open("{0}/rda_per_round_{1}to{2}/rda_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
+
+                op_fps[fqdn].write("{0}|{1}|{2}|{3}|{4}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), n_d, n_r, n_a) )
 
 
 tstart = int(sys.argv[1])
@@ -119,11 +136,16 @@ tend = int(sys.argv[2])
 campaign = sys.argv[3]
 op_dir = sys.argv[4]
 is_swift = int(sys.argv[5])
+is_rda = int(sys.argv[6])
 
 # offset = len("projects.zeusping.test1.geo.netacuity.")
 offset = len("projects.zeusping.test1.")
 
-mkdir_cmd = 'mkdir -p {0}/pinged_resp_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
+if is_rda == 0:
+    mkdir_cmd = 'mkdir -p {0}/pinged_resp_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
+else:
+    mkdir_cmd = 'mkdir -p {0}/rda_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
+    
 args = shlex.split(mkdir_cmd)
 if py_ver == 2:
     try:
@@ -152,7 +174,11 @@ for this_t in range(tstart, tend, 600):
         ts_fname = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/round={5}/ts.gz'.format(campaign, this_t_dt.year, this_t_dt.strftime("%m"), this_t_dt.strftime("%d"), this_t_dt.strftime("%H"), round_id)
     else:
         # Let's assume that op_dir is the same as the inp_dir
-        ts_fname = "{0}/{1}/ts.gz".format(op_dir, round_id)
+        if is_rda == 0:
+            ts_fname = "{0}/{1}/ts.gz".format(op_dir, round_id)
+        else:
+            # TODO: Remove the "test" once we have this finalized
+            ts_fname = "{0}/{1}/ts_rda_test".format(op_dir, round_id)
 
     sys.stderr.write("{0}\n".format(ts_fname) )
     # sys.exit(1)
