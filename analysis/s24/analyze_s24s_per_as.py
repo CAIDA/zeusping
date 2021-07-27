@@ -32,7 +32,7 @@
 #  MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 # pinged_ips_fname is a file that contains all the addresses that were pinged in this AS. This file is essential since we use it to prune the set of addresses in the rda file that we will wade through.
-# resp_ips_fname is a file that contains the addresses that were *typically* responsive in this AS. I got it by setting some arbitrary thresholds (for e.g.: addresses that responded more than X times when they had been pinged Y times, using addr_to_dropouts_detailed). This file is not strictly essential for the /24-based analysis; if we use it, it gives us a sense of how many addresses in the /24 are likely to be ping-responsive
+# resp_s24s_fname is a file that contains: for each /24, the addresses that were *typically* responsive in this AS during a particular window of time that we consider as being representative. 
 # specific_round_fname is the rda (responsive, dropouts, anti-dropouts) file for the specific round we're interested in.
 
 import sys
@@ -48,6 +48,7 @@ import io
 import struct
 import socket
 import wandio
+import pprint
 
 zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
 sys.path.append(zeusping_utils_path + "/utils")
@@ -72,8 +73,8 @@ def find_s24(ipv4_addr):
     oct1, oct2, oct3, oct4 = split_ips(ipv4_addr)
     return "{0}.{1}.{2}.0/24".format(oct1, oct2, oct3)
 
-
-def populate_s24_to_dets(fname, typ):
+# The input to this function is a file with an address on each line. We currently use this function only to get "pinged" addresses (not "resp", nor "r", "d", "a")
+def populate_s24_to_dets_given_addrfile(fname, typ):
     fp = open(fname)
 
     if typ == "pinged":
@@ -106,6 +107,25 @@ def populate_s24_to_dets(fname, typ):
 
     if typ == "pinged":
         return pinged_addrs
+
+# The input to this function is a file with an s24 and the median responsive addresses in that s24 on each line.    
+def populate_s24_to_resps_given_s24file(resp_s24s_fname):
+    s24_to_resps = defaultdict(int)
+    resp_s24s_fp = open(resp_s24s_fname)
+    for line in resp_s24s_fp:
+        parts = line.strip().split('|')
+
+        s24 = parts[0]
+        resp = int(float(parts[1]))
+        s24_to_resps[s24] = resp
+
+        # if s24 == '172.100.67.0/24':
+        #     pprint.pprint(line)
+        #     pprint.pprint(resp)        
+        #     pprint.pprint(s24_to_resps[s24])
+        #     sys.exit(1)
+
+    return s24_to_resps
 
 
 def find_reqd_s24_set(pinged_addrs):
@@ -186,39 +206,33 @@ def populate_s24_to_round_status_mr(fname, reqd_s24_set, s24_to_dets):
 # mr-oneround for the mode where we use the status of /24s calculated across multiple rounds, but only look at a given round
 # mr-multiround where we take in a start-time and end-time, and identify all rounds where more than threshold dropouts occurred with very few responsive addresses. For those rounds, write into an output file. We will dig into those rounds individually later.
 mode = sys.argv[1]         
-pinged_ips_fname = sys.argv[2]
-resp_ips_fname = sys.argv[3]
-
+pinged_ips_fname = sys.argv[2] # TODO: Get the pinged_ips in some other manner perhaps...? Depends on what is efficient... if it's efficient to calculate the pinged_addrs once and just crunch through them, perhaps that's good enough.
+resp_s24s_fname = sys.argv[3] # pinged_ips is a list of ips, but resp_s24s is a list of s24s. 
 
 status_to_char = {"0" : "d", "1" : "r", "2" : "a"}
 s24_to_dets = {}
 
-pinged_addrs = populate_s24_to_dets(pinged_ips_fname, "pinged")
-populate_s24_to_dets(resp_ips_fname, "resp") # Note: I am using "resp" to identify how many addresses "typically" respond to pings from each /24.
-
-# print s24_to_dets['24.30.242.0/24']
+pinged_addrs = populate_s24_to_dets_given_addrfile(pinged_ips_fname, "pinged")
+s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
 
 if mode == "simple-oneround":
     specific_round_fname = sys.argv[4]
     populate_s24_to_round_status(specific_round_fname, pinged_addrs)
     for s24 in s24_to_dets:
-        # sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["resp"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]),  len(s24_to_dets[s24]["a"]) ) )
-        sys.stdout.write("{0} {1} {2} {3}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]) ) )
-    
+        sys.stdout.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
 
 elif mode == "mr-oneround":
     specific_round_fname = sys.argv[4]
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
     for s24 in s24_to_dets:
-        # sys.stdout.write("{0} {1} {2} {3} {4} {5}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["resp"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]),  len(s24_to_dets[s24]["a"]) ) )
-        sys.stdout.write("{0} {1} {2} {3}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]) ) )
+        sys.stdout.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
 
 elif mode == "mr-multiround":
     inp_path = sys.argv[4]
     tstart = int(sys.argv[5])
     tend = int(sys.argv[6])
-
+    
     def nested_dict_factory_set(): 
         return defaultdict(set)
     
@@ -232,7 +246,7 @@ elif mode == "mr-multiround":
         
         for s24 in s24_to_rda_dets:
             if len(s24_to_rda_dets[s24]['d']) >= 5 and len(s24_to_rda_dets[s24]['r']) < 5:
-                sys.stdout.write("{0} {1} {2} {3} {4} {5} {6}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]) ) )
+                sys.stdout.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]), s24_to_resps[s24] ) )
 
         sys.stdout.flush()
 
