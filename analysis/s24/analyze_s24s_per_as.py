@@ -205,33 +205,50 @@ def populate_s24_to_round_status_mr(fname, reqd_s24_set, s24_to_dets):
 # simple-oneround for the mode where we use the output of swift_process_round_simple for single round.
 # mr-oneround for the mode where we use the status of /24s calculated across multiple rounds, but only look at a given round
 # mr-multiround where we take in a start-time and end-time, and identify all rounds where more than threshold dropouts occurred with very few responsive addresses. For those rounds, write into an output file. We will dig into those rounds individually later.
-mode = sys.argv[1]         
-pinged_ips_fname = sys.argv[2] # TODO: Get the pinged_ips in some other manner perhaps...? Depends on what is efficient... if it's efficient to calculate the pinged_addrs once and just crunch through them, perhaps that's good enough.
-resp_s24s_fname = sys.argv[3] # pinged_ips is a list of ips, but resp_s24s is a list of s24s. 
+mode = sys.argv[1]
+campaign = sys.argv[2]
+aggr = sys.argv[3]
+asn = sys.argv[4]
 
 status_to_char = {"0" : "d", "1" : "r", "2" : "a"}
 s24_to_dets = {}
 
+pinged_ips_fname = './data/{0}-{1}-{2}-pingedaddrs'.format(campaign, aggr, asn) # TODO: Get the pinged_ips in some other manner perhaps...? Depends on what is efficient... if it's efficient to calculate the pinged_addrs once and just crunch through them, perhaps that's good enough.
 pinged_addrs = populate_s24_to_dets_given_addrfile(pinged_ips_fname, "pinged")
+
+# resp_s24s_fname = sys.argv[5] # pinged_ips is a list of ips, but resp_s24s is a list of s24s.
+# resp_s24s_fname = './data/typical_resps_per_s24_1616889600to1617494400'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
+resp_s24s_fname = './data/typical_resps_per_s24_1617494400to1618099200'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
 s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
 
+
 if mode == "simple-oneround":
-    specific_round_fname = sys.argv[4]
+    specific_round_fname = sys.argv[5]
     populate_s24_to_round_status(specific_round_fname, pinged_addrs)
     for s24 in s24_to_dets:
         sys.stdout.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
-
+        
 elif mode == "mr-oneround":
-    specific_round_fname = sys.argv[4]
+    # inp_path = '/scratch/zeusping/data/processed_op_CA_ME_testbintest1'
+    inp_path = sys.argv[5]
+    reqd_t = int(sys.argv[6])
+    specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
+
+    reqd_t_dt = datetime.datetime.utcfromtimestamp(reqd_t)
+    reqd_t_dt_str = '{0}-{1}-{2}T{3}-{4}'.format(reqd_t_dt.year, reqd_t_dt.strftime("%m"), reqd_t_dt.strftime("%d"), reqd_t_dt.strftime("%H"), reqd_t_dt.strftime("%M") )
+    
+    op_fname = './data/for_crispr/for_alex/s24s_multiroundfate_{0}-{1}_{2}_{3}'.format(aggr, asn, reqd_t, reqd_t_dt_str)
+    op_fp = open(op_fname, 'w')
+    
     for s24 in s24_to_dets:
-        sys.stdout.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
+        op_fp.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
 
 elif mode == "mr-multiround":
-    inp_path = sys.argv[4]
-    tstart = int(sys.argv[5])
-    tend = int(sys.argv[6])
+    inp_path = sys.argv[5]
+    tstart = int(sys.argv[6])
+    tend = int(sys.argv[7])
     
     def nested_dict_factory_set(): 
         return defaultdict(set)
