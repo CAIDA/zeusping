@@ -40,7 +40,8 @@
 
 # NOTE NOTE: Dropouts and anti-dropouts are unions of addresses. Responsive addresses are intersections of addresses across *all* rounds. Thus, addresses that dropped out, or that had an anti-dropout, will never be responsive. Consider, for example an anti-dropout address in round -N. Since that address hadn't been considered "responsive" at the beginning of round -N (it hadn't been responsive in round -(N+1) and it would have a status of "anti-dropout" in round -N), that address will be absent from at least one round's responsive address set and will therefore not be a part of the union.
 
-# TODO: There is a bug in this code. We are investigating rda files for rounds (T-1, T, T+1), therefore investigating responses in rounds T-2, T-1, T. This is correct for dropouts but incorrect for responses. Modify appropriately. 
+# NOTE: There was a bug in this code. We were investigating rda files for rounds (T-1, T, T+1), therefore investigating responses in rounds T-2, T-1, T. This was correct for dropouts but incorrect for responses.
+# We fixed this bug by reading responses from rda files for rounds (T, T+1, T+2) and dropouts from rda files for rounds (T-1, T, T+1)
 
 
 import sys
@@ -96,7 +97,7 @@ def find_s24(ipv4_addr):
 
 
 s24_to_status_set = {}
-for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
+for roun in range(-(num_adjacent_rounds+1), (num_adjacent_rounds+2) ):
     s24_to_status_set[roun] = {}
 
 s24_to_status = {}
@@ -131,9 +132,6 @@ for line in inp_fp:
             
             if s24 not in s24_to_status:
                 s24_to_status[s24] = {}
-
-            if s24 not in s24_to_status_set[0]:
-                s24_to_status_set[0][s24] =  {"d" : set(), "r" : set(), "a": set()}
                 
             # loc2_id = ip_to_metadata[addr]["loc2_id"]
             loc2_name = ip_to_metadata[addr]["loc2_name"]
@@ -146,17 +144,20 @@ for line in inp_fp:
             # s24_to_status[s24][loc2_id][status] += 1
             s24_to_status[s24][loc2_name][status] += 1
 
-            s24_to_status_set[0][s24][status].add(addr)
+            # Just update all the s24_to_status_set in the next loop
+            # if s24 not in s24_to_status_set[0]:
+            #     s24_to_status_set[0][s24] =  {"d" : set(), "r" : set(), "a": set()}
+            # s24_to_status_set[0][s24][status].add(addr)
 
             if status == 'd':
                 dropout_s24s.add(s24)
 
 
-for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
+for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+2) ):
 
     # We've already finished the 0th round
-    if roun == 0:
-        continue
+    # if roun == 0:
+    #     continue
     
     temp_round_tstart = d_round_epoch + roun*ROUND_SECS
 
@@ -178,7 +179,7 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
         s24 = find_s24(addr)
         
         if s24 in dropout_s24s:
-            
+
             status = parts[1].strip()
 
             if status == '0':
@@ -188,10 +189,20 @@ for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
             elif status == '2':
                 status = 'a'
 
-            if s24 not in s24_to_status_set[roun]:
-                s24_to_status_set[roun][s24] =  {"d" : set(), "r" : set(), "a": set()}
+            if status == 'd' or status == 'a':
+                
+                if s24 not in s24_to_status_set[roun]:
+                    s24_to_status_set[roun][s24] =  {"d" : set(), "r" : set(), "a": set()}
 
-            s24_to_status_set[roun][s24][status].add(addr)
+                s24_to_status_set[roun][s24][status].add(addr)
+
+            # rda files indicate responsiveness at the beginning of a round (i.e., in the previous round). So update the previous round.
+            elif status == 'r':
+                if s24 not in s24_to_status_set[roun-1]:
+                    s24_to_status_set[roun-1][s24] =  {"d" : set(), "r" : set(), "a": set()}
+
+                s24_to_status_set[roun-1][s24][status].add(addr)
+                
                 
                 
 # inp_fname_parts = inp_fname.strip().split('_')
