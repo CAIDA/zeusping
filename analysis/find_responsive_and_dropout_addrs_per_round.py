@@ -417,6 +417,9 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
 
     ip_to_asn = {}
     ip_to_loc = {}
+
+    s24_to_sr_status = defaultdict(nested_dict_factory_int)
+    
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
@@ -460,25 +463,35 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
                 
         ip_to_loc[ipstr] = [loc1, loc2]
 
+        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. # TODO: I will need some other way of representing a 32-byte (256 bit) integer representing the status of each /24.
+        
         if addr in this_roun_addr_to_status:
             if this_roun_addr_to_status[addr] == 0:
 
                 loc1_asn_to_status[loc1][asn]["r"] += 1
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
+                mask = 1<<int(oct4)
+                s24_to_sr_status[s24]['r'] |= (mask)
                 
                 loc1_asn_to_status[loc1][asn]["d"] += 1
                 loc2_asn_to_status[loc2][asn]["d"] += 1
+                s24_to_sr_status[s24]['d'] |= (mask)
                 rda_op_fp.write("{0} 0\n".format(ipstr) ) # The address experienced a dropout this round
+                
             else:
                 # if addr_to_status is not 0, it *has* to be 2
                 loc1_asn_to_status[loc1][asn]["a"] += 1
                 loc2_asn_to_status[loc2][asn]["a"] += 1
+                mask = 1<<int(oct4)
+                s24_to_sr_status[s24]['a'] |= (mask)
                 rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
 
         else:
             loc1_asn_to_status[loc1][asn]["r"] += 1
             loc2_asn_to_status[loc2][asn]["r"] += 1
+            mask = 1<<int(oct4)
+            s24_to_sr_status[s24]['r'] |= (mask)
             rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
 
     rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
@@ -492,6 +505,20 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     write_ts_file(ts_fp, loc2_asn_to_status, False)
     ts_fp.close()
 
+    if IS_TEST == 1:
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test'.format(processed_op_dir, this_t, this_t_round_end)
+    else:
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr'.format(processed_op_dir, this_t, this_t_round_end)
+    s24_fp = open(s24_fname, 'w') # TODO: Write in binary once we figure out how to
+
+    for s24 in s24_to_sr_status:
+        this_d = s24_to_sr_status[s24]
+        s24_fp.write("{0}|{1}|{2}|{3}\n".format(s24, this_d['d'], this_d['r'], this_d['a']) )
+    
+    s24_fp.close()
+
+    s24_to_sr_status = {} # Release memory
+    
     # Reinitialize loc1_asn_to_status and loc2_asn_to_status for mr since we no longer need the sr versions. Hopefully, this frees the memory.
     loc1_asn_to_status = defaultdict(nested_dict_factory)
     loc2_asn_to_status = defaultdict(nested_dict_factory)
@@ -566,7 +593,7 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
             # addr_to_multiround_status[addr] = 0
             loc1_asn_to_status[loc1][asn]["d"] += 1
             loc2_asn_to_status[loc2][asn]["d"] += 1
-            mask = 1<<int(oct4)
+            mask = 1<<int(oct4) # TODO: memoize
             s24_to_mr_status[s24]['d'] |= (mask)
             rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
         elif addr in resp_all_rounds_addr_set:
@@ -678,7 +705,7 @@ if read_bin == 1:
 # processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
 
 if read_bin == 1:
-    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest0/'.format(campaign)
+    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest1/'.format(campaign)
 else:
     processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
 
