@@ -41,6 +41,7 @@ import shlex
 import subprocess
 import os
 import datetime
+import time
 import json
 from collections import defaultdict
 import array
@@ -72,6 +73,34 @@ def split_ips(ip):
 def find_s24(ipv4_addr):
     oct1, oct2, oct3, oct4 = split_ips(ipv4_addr)
     return "{0}.{1}.{2}.0/24".format(oct1, oct2, oct3)
+
+
+def populate_list_of_week_begintimes():
+
+    list_of_week_begintimes = []
+    
+    start_time = 946771200 # Sunday, January 2, 2000 0:00:00
+    curr_time = int(time.time())
+
+    this_t = start_time
+    while this_t < curr_time:
+        list_of_week_begintimes.append(this_t)
+        this_t += 604800 # Seconds in a week, 86400*7
+    
+    return list_of_week_begintimes
+
+
+def find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t):
+
+    for this_t in list_of_week_begintimes:
+        if reqd_t < this_t:
+            this_week_endtime = this_t
+            break
+
+    this_week_begintime = this_week_endtime - 604800
+    
+    return this_week_begintime, this_week_endtime
+
 
 # The input to this function is a file with an address on each line. We currently use this function only to get "pinged" addresses (not "resp", nor "r", "d", "a")
 def populate_s24_to_dets_given_addrfile(fname, typ):
@@ -216,14 +245,16 @@ s24_to_dets = {}
 pinged_ips_fname = './data/{0}-{1}-{2}-pingedaddrs'.format(campaign, aggr, asn) # TODO: Get the pinged_ips in some other manner perhaps...? Depends on what is efficient... if it's efficient to calculate the pinged_addrs once and just crunch through them, perhaps that's good enough.
 pinged_addrs = populate_s24_to_dets_given_addrfile(pinged_ips_fname, "pinged")
 
-# resp_s24s_fname = sys.argv[5] # pinged_ips is a list of ips, but resp_s24s is a list of s24s.
-# resp_s24s_fname = './data/typical_resps_per_s24_1616889600to1617494400'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
-resp_s24s_fname = './data/typical_resps_per_s24_1617494400to1618099200'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
-s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
-
+list_of_week_begintimes = populate_list_of_week_begintimes()
 
 if mode == "simple-oneround":
     specific_round_fname = sys.argv[5]
+    reqd_t = int(sys.argv[6])
+    
+    this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
+    resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+    s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
+    
     populate_s24_to_round_status(specific_round_fname, pinged_addrs)
     for s24 in s24_to_dets:
         sys.stdout.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
@@ -232,6 +263,14 @@ elif mode == "mr-oneround":
     # inp_path = '/scratch/zeusping/data/processed_op_CA_ME_testbintest1'
     inp_path = sys.argv[5]
     reqd_t = int(sys.argv[6])
+
+    # resp_s24s_fname = sys.argv[5] # pinged_ips is a list of ips, but resp_s24s is a list of s24s.
+    # resp_s24s_fname = './data/typical_resps_per_s24_1616889600to1617494400'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
+    this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
+    resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+    sys.stderr.write("resp_s24s_fname: {0}\n".format(resp_s24s_fname) )
+    s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
+    
     specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
@@ -255,6 +294,11 @@ elif mode == "mr-multiround":
     
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
+
+        this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, this_t)
+        resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+        s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
+        
         s24_to_rda_dets = defaultdict(nested_dict_factory_set)
         this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
         populate_s24_to_round_status_mr(this_t_fname, reqd_s24_set, s24_to_rda_dets)
