@@ -242,7 +242,7 @@ asn = sys.argv[4]
 status_to_char = {"0" : "d", "1" : "r", "2" : "a"}
 s24_to_dets = {}
 
-pinged_ips_fname = './data/{0}-{1}-{2}-pingedaddrs'.format(campaign, aggr, asn) # TODO: Get the pinged_ips in some other manner perhaps...? Depends on what is efficient... if it's efficient to calculate the pinged_addrs once and just crunch through them, perhaps that's good enough.
+pinged_ips_fname = './data/{0}-{1}-AS{2}-pingedaddrs'.format(campaign, aggr, asn) # TODO: Get the pinged_ips in some other manner perhaps...? Depends on what is efficient... if it's efficient to calculate the pinged_addrs once and just crunch through them, perhaps that's good enough.
 pinged_addrs = populate_s24_to_dets_given_addrfile(pinged_ips_fname, "pinged")
 
 list_of_week_begintimes = populate_list_of_week_begintimes()
@@ -289,10 +289,14 @@ elif mode == "mr-multiround":
     tstart = int(sys.argv[6])
     tend = int(sys.argv[7])
     
+    op_fname = './data/knockedouts24s-{0}-{1}-AS{2}-{3}to{4}'.format(campaign, aggr, asn, tstart, tend)
+    op_fp = open(op_fname, 'w')
+        
     def nested_dict_factory_set(): 
         return defaultdict(set)
     
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
+
     for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
 
         this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, this_t)
@@ -304,10 +308,9 @@ elif mode == "mr-multiround":
         populate_s24_to_round_status_mr(this_t_fname, reqd_s24_set, s24_to_rda_dets)
 
         sys.stderr.write("{0} processed, {1} s24s obtained\n".format(this_t, len(s24_to_rda_dets) ) )
-        
         for s24 in s24_to_rda_dets:
             if len(s24_to_rda_dets[s24]['d']) >= 5 and len(s24_to_rda_dets[s24]['r']) < 5:
-                sys.stdout.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]), s24_to_resps[s24] ) )
+                op_fp.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]), s24_to_resps[s24] ) )
 
-        sys.stdout.flush()
+        op_fp.flush()
 
