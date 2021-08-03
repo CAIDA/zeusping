@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 
 #  This software is Copyright (c) 2021 The Regents of the University of
 #  California. All Rights Reserved. Permission to copy, modify, and distribute this
@@ -75,7 +75,10 @@ def populate_s24_to_round_status_sr(fname, s24_to_resps):
 inp_path = sys.argv[1]
 tstart = int(sys.argv[2])
 tend = int(sys.argv[3])
-op_fname = sys.argv[4]
+
+# op_fname = sys.argv[4]
+op_dir = "./data/" # TODO: Change this location at some point
+op_fname = "{0}/typical_resps_per_s24_{1}to{2}".format(op_dir, tstart, tend)
 
 s24_to_resps = defaultdict(list)
 for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):

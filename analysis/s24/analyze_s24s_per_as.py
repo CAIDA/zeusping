@@ -97,7 +97,10 @@ def find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t):
             this_week_endtime = this_t
             break
 
-    this_week_begintime = this_week_endtime - 604800
+    if this_week_endtime == 1611446400:
+        this_week_begintime = 1610971200 # Temporary exception so that we can handle first (partial) week of CA_ME
+    else:
+        this_week_begintime = this_week_endtime - 604800
     
     return this_week_begintime, this_week_endtime
 
@@ -301,6 +304,8 @@ elif mode == "mr-multiround":
 
         this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, this_t)
         resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+        # sys.stderr.write("{0}\n".format(resp_s24s_fname))
+        # sys.exit(1)
         s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
         
         s24_to_rda_dets = defaultdict(nested_dict_factory_set)
