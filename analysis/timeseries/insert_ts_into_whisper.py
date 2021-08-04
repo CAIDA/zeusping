@@ -69,6 +69,12 @@ def build_tstamp_to_vals(inp_dir, tstamp_to_vals):
                 # sys.stderr.write("{0}\n".format(ts_file) )
                 continue
 
+        # TODO: The following is brittle and will break if we ever run into a case where an AS is something like X_Y (which can sometimes happen)
+        # Test the following
+        # ts_file_parts = ts_file.strip().split('/')
+        # fqdn = "{0}".format(ts_file_parts[-1][PREFLEN:])
+        # PREFLEN = len("pinged_resp_per_round_"), # Move this to main.
+
         ts_file_parts = ts_file.strip().split('_')
         fqdn = "{0}.{1}".format(PREF, ts_file_parts[-1])
 
@@ -83,33 +89,47 @@ def build_tstamp_to_vals(inp_dir, tstamp_to_vals):
 
             if ts not in tstamp_to_vals:
                 tstamp_to_vals[ts] = {}
-            
-            n_p = int(parts[2])
-            key = "{0}.pinged_addr_cnt".format(fqdn)
-            tstamp_to_vals[ts][key] = n_p
-            
-            n_r = int(parts[4])
-            r_key = "{0}.echoresponse_addr_cnt".format(fqdn)
-            tstamp_to_vals[ts][r_key] = n_r
 
-            n_r_prev = n_r
-            prev_ts = ts - 600
-            if prev_ts in tstamp_to_vals:
-                if r_key in tstamp_to_vals[prev_ts]:
-                    n_r_prev = tstamp_to_vals[prev_ts][r_key]
-            
-            n_d = n_r_prev - n_r
-            
-            if n_d >= 0:
-                key = "{0}.disrupted_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][key] = n_d
-                key = "{0}.antidisrupted_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][key] = 0
+            if is_rda == 0:
+                n_p = int(parts[2])
+                key = "{0}.pinged_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][key] = n_p
+
+                n_r = int(parts[4])
+                r_key = "{0}.echoresponse_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][r_key] = n_r
+
+                n_r_prev = n_r
+                prev_ts = ts - 600
+                if prev_ts in tstamp_to_vals:
+                    if r_key in tstamp_to_vals[prev_ts]:
+                        n_r_prev = tstamp_to_vals[prev_ts][r_key]
+
+                n_d = n_r_prev - n_r
+
+                if n_d >= 0:
+                    key = "{0}.disrupted_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][key] = n_d
+                    key = "{0}.antidisrupted_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][key] = 0
+                else:
+                    key = "{0}.antidisrupted_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][key] = abs(n_d)
+                    key = "{0}.disrupted_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][key] = 0
+
             else:
-                key = "{0}.antidisrupted_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][key] = abs(n_d)
-                key = "{0}.disrupted_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][key] = 0
+                n_d = int(parts[2])
+                r_key = "{0}.dropout_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][r_key] = n_d
+
+                n_r = int(parts[3])
+                r_key = "{0}.responsive_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][r_key] = n_r
+
+                n_a = int(parts[4])
+                r_key = "{0}.antidropout_addr_cnt".format(fqdn)
+                tstamp_to_vals[ts][r_key] = n_a
             
         # sys.exit(1)
 
@@ -119,7 +139,7 @@ PREF = "projects.zeusping.test1"
 inp_dir = sys.argv[1]
 # If we are processing the US, let us not write timeseries files for ASes. We do not want to do this because various ZeusPing campaigns would have pinged addresses in the same AS (7922 is pinged in LA_MS_AL_AR_FL_CT and also in CA_ME). If we insert TS values for each AS from these campaigns, they will get clobbered.
 is_US = int(sys.argv[2])
-
+is_rda = int(sys.argv[3])
 
 ts = _pytimeseries.Timeseries()
 
