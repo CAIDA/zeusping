@@ -518,24 +518,24 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     s24_fp.close()
 
     s24_to_sr_status = {} # Release memory
-    
     # Reinitialize loc1_asn_to_status and loc2_asn_to_status for mr since we no longer need the sr versions. Hopefully, this frees the memory.
     loc1_asn_to_status = defaultdict(nested_dict_factory)
     loc2_asn_to_status = defaultdict(nested_dict_factory)
 
-    if IS_COMPRESSED == 1:
-        if IS_TEST == 1:
-            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
-        else:
-            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t, this_t_round_end)
-        rda_multiround_op_fp = wandio.open(rda_multiround_op_fname, 'w')
-    else:
-        if IS_TEST == 1:
-            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test'.format(processed_op_dir, this_t, this_t_round_end)
-        else:
-            rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround'.format(processed_op_dir, this_t, this_t_round_end)
-        rda_multiround_op_fp = open(rda_multiround_op_fname, 'w')
+    if MUST_WRITE_RDA_MR == 1:
 
+        if IS_COMPRESSED == 1:
+            if IS_TEST == 1:
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
+            else:
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t, this_t_round_end)
+            rda_multiround_op_fp = wandio.open(rda_multiround_op_fname, 'w')
+        else:
+            if IS_TEST == 1:
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test'.format(processed_op_dir, this_t, this_t_round_end)
+            else:
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround'.format(processed_op_dir, this_t, this_t_round_end)
+            rda_multiround_op_fp = open(rda_multiround_op_fname, 'w')
 
     # TODO: Replace addr_to_status[-1] with prev_round_addr_to_status etc., to prevent repeated hashing
     resp_all_rounds_addr_set = resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
@@ -550,80 +550,89 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
         # else:
         #     ipstr = addr
 
-        # Not all the mr IP addresses will be in the sr IP addresses.
-        # But for those that are, let's find asn and loc details using the dict, to save processing time.
-        if ipstr in ip_to_asn:
-            asn = ip_to_asn[ipstr]
-            [loc1, loc2] = ip_to_loc[ipstr]
-            
-        else:
-            
-            # Find ASN and loc details
-            asn = 'UNK'
-            # Find ip_to_as, ip_to_loc
-            rnode = rtree.search_best(ipstr)
-            if rnode is None:
-                asn = 'UNK'
+        if MUST_WRITE_RDA_MR == 1:
+            # Not all the mr IP addresses will be in the sr IP addresses.
+            # But for those that are, let's find asn and loc details using the dict, to save processing time.
+            if ipstr in ip_to_asn:
+                asn = ip_to_asn[ipstr]
+                [loc1, loc2] = ip_to_loc[ipstr]
+
             else:
-                asn = rnode.data["origin"]
 
-            loc1 = 'UNKLOC1'
-            loc2 = 'UNKLOC2'
-            res = ipm.lookup(ipstr)
-
-            if len(res) != 0:
-                ctry_code = res[0]['country_code']
-
-                if is_US is True:
-                    # Find US state and county
-                    if ctry_code != 'US':
-                        continue
-
-                    loc1 = str(res[0]['polygon_ids'][1]) # This is for US state info
-                    loc2 = str(res[0]['polygon_ids'][0]) # This is for county info
-
+                # Find ASN and loc details
+                asn = 'UNK'
+                # Find ip_to_as, ip_to_loc
+                rnode = rtree.search_best(ipstr)
+                if rnode is None:
+                    asn = 'UNK'
                 else:
-                    # Find region
-                    loc1 = ctry_code
-                    loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
+                    asn = rnode.data["origin"]
+
+                loc1 = 'UNKLOC1'
+                loc2 = 'UNKLOC2'
+                res = ipm.lookup(ipstr)
+
+                if len(res) != 0:
+                    ctry_code = res[0]['country_code']
+
+                    if is_US is True:
+                        # Find US state and county
+                        if ctry_code != 'US':
+                            continue
+
+                        loc1 = str(res[0]['polygon_ids'][1]) # This is for US state info
+                        loc2 = str(res[0]['polygon_ids'][0]) # This is for county info
+
+                    else:
+                        # Find region
+                        loc1 = ctry_code
+                        loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
             
         s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. # TODO: I will need some other way of representing a 32-byte (256 bit) integer representing the status of each /24. 
 
         if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
-            # addr_to_multiround_status[addr] = 0
-            loc1_asn_to_status[loc1][asn]["d"] += 1
-            loc2_asn_to_status[loc2][asn]["d"] += 1
+            if MUST_WRITE_RDA_MR == 1:
+                # addr_to_multiround_status[addr] = 0
+                loc1_asn_to_status[loc1][asn]["d"] += 1
+                loc2_asn_to_status[loc2][asn]["d"] += 1
+                rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
+                
             mask = 1<<int(oct4) # TODO: memoize
             s24_to_mr_status[s24]['d'] |= (mask)
-            rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
+            
         elif addr in resp_all_rounds_addr_set:
-            # addr_to_multiround_status[addr] = 1
-            loc1_asn_to_status[loc1][asn]["r"] += 1
-            loc2_asn_to_status[loc2][asn]["r"] += 1
+            if MUST_WRITE_RDA_MR == 1:
+                # addr_to_multiround_status[addr] = 1
+                loc1_asn_to_status[loc1][asn]["r"] += 1
+                loc2_asn_to_status[loc2][asn]["r"] += 1
+                rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
+                
             mask = 1<<int(oct4)
             s24_to_mr_status[s24]['r'] |= (mask)
-            rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
             
         if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
-            # addr_to_multiround_status[addr] = 2
-            loc1_asn_to_status[loc1][asn]["a"] += 1
-            loc2_asn_to_status[loc2][asn]["a"] += 1
+            if MUST_WRITE_RDA_MR == 1:
+                # addr_to_multiround_status[addr] = 2
+                loc1_asn_to_status[loc1][asn]["a"] += 1
+                loc2_asn_to_status[loc2][asn]["a"] += 1
+                rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
+                
             mask = 1<<int(oct4)
             s24_to_mr_status[s24]['a'] |= (mask)
-            rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
             
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
+        
+    if MUST_WRITE_RDA_MR == 1:
+        rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
-    rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
-
-    if IS_TEST == 1:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
-    else:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t, this_t_round_end)
-    ts_fp = open(ts_fname, 'w')
-    write_ts_file(ts_fp, loc1_asn_to_status, True)
-    write_ts_file(ts_fp, loc2_asn_to_status, False)
-    ts_fp.close()
+        if IS_TEST == 1:
+            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
+        else:
+            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t, this_t_round_end)
+        ts_fp = open(ts_fname, 'w')
+        write_ts_file(ts_fp, loc1_asn_to_status, True)
+        write_ts_file(ts_fp, loc2_asn_to_status, False)
+        ts_fp.close()
 
     if IS_TEST == 1:
         s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
@@ -646,6 +655,8 @@ is_swift = int(sys.argv[4]) # Whether we are reading input files from the Swift 
 pfx2AS_fn = sys.argv[5]
 netacq_date = sys.argv[6]
 scope = sys.argv[7]
+
+MUST_WRITE_RDA_MR = 0
 
 idx_to_loc1_name = {}
 idx_to_loc1_fqdn = {}
@@ -705,7 +716,7 @@ if read_bin == 1:
 # processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
 
 if read_bin == 1:
-    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest1/'.format(campaign)
+    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest2/'.format(campaign)
 else:
     processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
 
