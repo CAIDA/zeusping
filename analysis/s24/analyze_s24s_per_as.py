@@ -97,10 +97,10 @@ def find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t):
             this_week_endtime = this_t
             break
 
-    if this_week_endtime == 1611446400:
-        this_week_begintime = 1610971200 # Temporary exception so that we can handle first (partial) week of CA_ME
-    else:
-        this_week_begintime = this_week_endtime - 604800
+    # if this_week_endtime == 1611446400:
+    #     this_week_begintime = 1610971200 # Temporary exception so that we can handle first (partial) week of CA_ME
+    # else:
+    this_week_begintime = this_week_endtime - 604800
     
     return this_week_begintime, this_week_endtime
 
@@ -273,7 +273,8 @@ elif mode == "mr-oneround":
     resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
     sys.stderr.write("resp_s24s_fname: {0}\n".format(resp_s24s_fname) )
     s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
-    
+
+    # TODO: Change specific_round_fname to be compatible with compression
     specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
@@ -303,12 +304,13 @@ elif mode == "mr-multiround":
     for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
 
         this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, this_t)
-        resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+        resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.
         # sys.stderr.write("{0}\n".format(resp_s24s_fname))
         # sys.exit(1)
         s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
         
         s24_to_rda_dets = defaultdict(nested_dict_factory_set)
+        # TODO: Change specific_round_fname to be compatible with compression
         this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
         populate_s24_to_round_status_mr(this_t_fname, reqd_s24_set, s24_to_rda_dets)
 
