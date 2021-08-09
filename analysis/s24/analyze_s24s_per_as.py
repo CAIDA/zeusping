@@ -255,7 +255,7 @@ if mode == "simple-oneround":
     reqd_t = int(sys.argv[6])
     
     this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
-    resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+    resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.    
     s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
     
     populate_s24_to_round_status(specific_round_fname, pinged_addrs)
@@ -270,7 +270,7 @@ elif mode == "mr-oneround":
     # resp_s24s_fname = sys.argv[5] # pinged_ips is a list of ips, but resp_s24s is a list of s24s.
     # resp_s24s_fname = './data/typical_resps_per_s24_1616889600to1617494400'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
     this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
-    resp_s24s_fname = './data/typical_resps_per_s24_{0}to{1}'.format(this_week_begintime, this_week_endtime) # TODO: Change the directory.
+    resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.
     sys.stderr.write("resp_s24s_fname: {0}\n".format(resp_s24s_fname) )
     s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
 
