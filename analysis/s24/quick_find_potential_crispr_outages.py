@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 #  This software is Copyright (c) 2021 The Regents of the University of
 #  California. All Rights Reserved. Permission to copy, modify, and distribute this
@@ -45,7 +44,6 @@ import io
 import struct
 import socket
 import wandio
-import statistics
 import math
 import pprint
 
@@ -53,50 +51,74 @@ zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeuspin
 sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
-def populate_s24_to_round_status_sr(fname, s24_to_resps):
-    if 'gz' in fname:
-        fp = wandio.open(fname)
-    else:
-        fp = open(fname)
 
-    for line in fp:
+def populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns):
+    usstate_to_reqd_asns_fp = open(usstate_to_reqd_asns_fname)
 
-        parts = line.strip().split('|')
+    for line in usstate_to_reqd_asns_fp:
+        parts = line.strip().split()
+        usstate = parts[0].strip()
 
-        s24 = parts[0].strip()
+        if usstate not in usstate_to_reqd_asns:
+            usstate_to_reqd_asns[usstate] = set()
 
-        r_addrs = int(parts[2])
-        s24_to_dets = defaultdict(set)
-        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets)
+        asn_list = parts[1].strip()
+        asns = asn_list.strip().split('-')
 
-        s24_to_resps[s24].append(len(s24_to_dets['r']) )
+        for asn in asns:
+            asns_reqd_splits_parts = asn.strip().split(':')
+            usstate_to_reqd_asns[usstate].add(asns_reqd_splits_parts[0])
 
 
 campaign = sys.argv[1]
-inp_path = sys.argv[2]
-tstart = int(sys.argv[3])
-tend = int(sys.argv[4])
+tstart = int(sys.argv[2])
+tend = int(sys.argv[3])
+inp_path = sys.argv[4]
+usstate_to_reqd_asns_fname = sys.argv[5]
 
-# op_fname = sys.argv[4]
-op_dir = "./data/" # TODO: Change this location at some point
-op_fname = "{0}/typicalrespspers24-{1}-{2}to{3}".format(op_dir, campaign, tstart, tend)
+# Define nested_dicts for usstate_asn_s24_outages files
+def nested_dict_factory_int(): 
+  return defaultdict(int)
 
-s24_to_resps = defaultdict(list)
-for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
-    this_t_fname = "{0}/{1}_to_{2}/ts_s24_sr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
-    sys.stderr.write("Processing {0} at {1}\n".format(this_t_fname, str(datetime.datetime.now() ) ) )
-    populate_s24_to_round_status_sr(this_t_fname, s24_to_resps)
+def nested_dict_factory(): 
+  return defaultdict(nested_dict_factory_int)
 
+usstate_to_reqd_asns = {}
+populate_usstate_to_reqd_asns(usstate_to_reqd_asns_fname, usstate_to_reqd_asns)
+
+usstate_asn_s24_outages = defaultdict(nested_dict_factory)
+out_t_to_str = {}
+
+for usstate in usstate_to_reqd_asns:
+    # if usstate != 'FL':
+    #     continue
     
-op_fp = open(op_fname, 'w')    
-for s24 in s24_to_resps:
-    # this_s24_resp_vals = s24_to_resps[s24]['r']
-    # pprint.pprint(s24)
-    # pprint.pprint(s24_to_resps[s24])
+    for asn in usstate_to_reqd_asns[usstate]:
+
+        inp_fname = '{0}/knockedouts24s-{1}-{2}-AS{3}-{4}to{5}'.format(inp_path, campaign, usstate, asn, tstart, tend)
+        try:
+            inp_fp = open(inp_fname)
+        except IOError:
+            sys.stderr.write("No file for usstate, asn: {0}, {1}\n".format(usstate, asn) )
+
+        for line in inp_fp:
+            parts = line.strip().split()
+
+            out_t = int(parts[0].strip() )
+
+            out_str = "{0} {1}".format(parts[1], parts[2])
+
+            out_t_to_str[out_t] = out_str
+
+            usstate_asn_s24_outages[usstate][asn][out_t] += 1
+
             
-    med = statistics.median(s24_to_resps[s24])
+op_fname = '{0}/potcrispr-{1}-{2}to{3}'.format(inp_path, campaign, tstart, tend)
+op_fp = open(op_fname, 'w')
+            
+for usstate in usstate_asn_s24_outages:
+    for asn in usstate_asn_s24_outages[usstate]:
+        for out_t in usstate_asn_s24_outages[usstate][asn]:
 
-    # op_fp.write("{0}|{1}\n".format(s24, math.floor(med) ) )
-    op_fp.write("{0}|{1}\n".format(s24, med ) )
-
-op_fp.close()
+            if usstate_asn_s24_outages[usstate][asn][out_t] >= 10:
+                op_fp.write("{0} {1} {2} {3} {4}\n".format(usstate_asn_s24_outages[usstate][asn][out_t], usstate, asn, out_t, out_t_to_str[out_t]) )
