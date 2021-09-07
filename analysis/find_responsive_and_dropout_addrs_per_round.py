@@ -399,11 +399,12 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     # </24> <dropout_sr> <responsive_sr> <antidropout_sr>, but where the three values will be in binary (with bit offsets indicating whether a particular address in the /24 experienced a dropout, was responsive, or had an anti-dropout).
     
     if IS_COMPRESSED == 1:
-        if IS_TEST == 1:
-            rda_op_fname = '{0}/{1}_to_{2}/rda_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
-        else:
-            rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
-        rda_op_fp = wandio.open(rda_op_fname, 'w')
+        if MUST_WRITE_RDA == 1:
+            if IS_TEST == 1:            
+                rda_op_fname = '{0}/{1}_to_{2}/rda_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
+            else:
+                rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
+            rda_op_fp = wandio.open(rda_op_fname, 'w')
     else:
         if IS_TEST == 1:
             rda_op_fname = '{0}/{1}_to_{2}/rda_test'.format(processed_op_dir, this_t, this_t_round_end)
@@ -470,14 +471,16 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
 
                 loc1_asn_to_status[loc1][asn]["r"] += 1
                 loc2_asn_to_status[loc2][asn]["r"] += 1
-                rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
+                if MUST_WRITE_RDA == 1:
+                    rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
                 mask = 1<<int(oct4)
                 s24_to_sr_status[s24]['r'] |= (mask)
                 
                 loc1_asn_to_status[loc1][asn]["d"] += 1
                 loc2_asn_to_status[loc2][asn]["d"] += 1
                 s24_to_sr_status[s24]['d'] |= (mask)
-                rda_op_fp.write("{0} 0\n".format(ipstr) ) # The address experienced a dropout this round
+                if MUST_WRITE_RDA == 1:
+                    rda_op_fp.write("{0} 0\n".format(ipstr) ) # The address experienced a dropout this round
                 
             else:
                 # if addr_to_status is not 0, it *has* to be 2
@@ -485,16 +488,19 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
                 loc2_asn_to_status[loc2][asn]["a"] += 1
                 mask = 1<<int(oct4)
                 s24_to_sr_status[s24]['a'] |= (mask)
-                rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
+                if MUST_WRITE_RDA == 1:
+                    rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
 
         else:
             loc1_asn_to_status[loc1][asn]["r"] += 1
             loc2_asn_to_status[loc2][asn]["r"] += 1
             mask = 1<<int(oct4)
             s24_to_sr_status[s24]['r'] |= (mask)
-            rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
+            if MUST_WRITE_RDA == 1:
+                rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
 
-    rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
+    if MUST_WRITE_RDA == 1:                
+        rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
     if IS_TEST == 1:
         ts_fname = '{0}/{1}_to_{2}/ts_rda_test'.format(processed_op_dir, this_t, this_t_round_end)
@@ -656,6 +662,7 @@ pfx2AS_fn = sys.argv[5]
 netacq_date = sys.argv[6]
 scope = sys.argv[7]
 
+MUST_WRITE_RDA = 0
 MUST_WRITE_RDA_MR = 0
 
 idx_to_loc1_name = {}
