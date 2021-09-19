@@ -441,13 +441,15 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
 
     ip_to_asn = {}
     ip_to_loc = {}
+    # ipint_to_ipstr = {}
 
     s24_to_sr_status = defaultdict(nested_dict_factory_int)
     
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
-        ipstr = socket.inet_ntoa(struct.pack('!L', addr)) # TODO: This is expensive. Memoize?
+        ipstr = socket.inet_ntoa(struct.pack('!L', addr))
+        # ipint_to_ipstr[addr] = ipstr
         # else:
         #     ipstr = addr
 
@@ -487,7 +489,9 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 
         ip_to_loc[ipstr] = [loc1, loc2]
 
-        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. 
+        # s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow.
+        s24 = addr & s24_mask
+        oct4 = addr & oct4_mask
         
         if addr in this_roun_addr_to_status:
             if this_roun_addr_to_status[addr] == 0:
@@ -569,6 +573,8 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
     # TODO: Replace addr_to_status[-1] with prev_round_addr_to_status etc., to prevent repeated hashing
     # resp_all_rounds_addr_set = resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
     resp_all_rounds_addr_set = resp_addrs[-2] & resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
+    # del resp_addrs
+    # sys.stderr.write("Deleted resp_addrs\n") # Deleting did not seem to make any difference!
     # to_write_addr_set = addr_to_status[-1].keys() | this_roun_addr_to_status.keys() | addr_to_status[1].keys() | resp_all_rounds_addr_set
     to_write_addr_set = addr_to_status[-1].keys() | this_roun_addr_to_status.keys() | resp_all_rounds_addr_set
 
@@ -577,7 +583,11 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
-        ipstr = socket.inet_ntoa(struct.pack('!L', addr)) # TODO: This is expensive. Memoize?
+        # Tried caching ipint_to_ipstr; we got very little benefit for non-trivial added memory consumption. Undid the caching.
+        # if addr in ipint_to_ipstr:
+        #     ipstr = ipint_to_ipstr[addr]
+        # else:
+        ipstr = socket.inet_ntoa(struct.pack('!L', addr))
         # else:
         #     ipstr = addr
 
@@ -619,7 +629,9 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                         loc1 = ctry_code
                         loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
             
-        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow.
+        # s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow.
+        s24 = addr & s24_mask
+        oct4 = addr & oct4_mask
 
         # if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
         if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) ):
@@ -824,5 +836,14 @@ else:
 bitset_cache = {}
 for i in range(256):
     bitset_cache[i] = 1<<i
-    
+
+# sys.exit(1) # 3.183G here already
+
+s24_mask = 0
+for i in range(24):
+    s24_mask |= 1 << i
+s24_mask = s24_mask << 8
+
+oct4_mask = (1 << 8) - 1
+
 main()
