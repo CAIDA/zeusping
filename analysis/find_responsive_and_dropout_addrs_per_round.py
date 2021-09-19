@@ -496,7 +496,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 if MUST_WRITE_RDA == 1:
                     rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
-                mask = 1<<int(oct4)
+                mask = bitset_cache[int(oct4)]
                 s24_to_sr_status[s24]['r'] |= (mask)
                 
                 loc1_asn_to_status[loc1][asn]["d"] += 1
@@ -509,7 +509,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 # if addr_to_status is not 0, it *has* to be 2
                 loc1_asn_to_status[loc1][asn]["a"] += 1
                 loc2_asn_to_status[loc2][asn]["a"] += 1
-                mask = 1<<int(oct4)
+                mask = bitset_cache[int(oct4)]
                 s24_to_sr_status[s24]['a'] |= (mask)
                 if MUST_WRITE_RDA == 1:
                     rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
@@ -517,7 +517,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
         else:
             loc1_asn_to_status[loc1][asn]["r"] += 1
             loc2_asn_to_status[loc2][asn]["r"] += 1
-            mask = 1<<int(oct4)
+            mask = bitset_cache[int(oct4)]
             s24_to_sr_status[s24]['r'] |= (mask)
             if MUST_WRITE_RDA == 1:
                 rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
@@ -629,7 +629,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["d"] += 1
                 rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
                 
-            mask = 1<<int(oct4) # TODO: memoize
+            mask = bitset_cache[int(oct4)]
             s24_to_mr_status[s24]['d'] |= (mask)
             
         elif addr in resp_all_rounds_addr_set:
@@ -639,7 +639,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
                 
-            mask = 1<<int(oct4)
+            mask = bitset_cache[int(oct4)]
             s24_to_mr_status[s24]['r'] |= (mask)
 
         # if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
@@ -650,7 +650,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["a"] += 1
                 rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
                 
-            mask = 1<<int(oct4)
+            mask = bitset_cache[int(oct4)]
             s24_to_mr_status[s24]['a'] |= (mask)
             
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
@@ -742,6 +742,8 @@ def main():
     # del unresp_addrs_prev_round
     # gc.collect()
 
+    # sys.exit(1) # Around 5 GB of memory taken up at this point
+    
     write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs)
 
     
@@ -819,4 +821,8 @@ if read_bin == 1:
 else:
     processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
 
+bitset_cache = {}
+for i in range(256):
+    bitset_cache[i] = 1<<i
+    
 main()
