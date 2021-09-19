@@ -240,7 +240,9 @@ def get_resp_unresp_prev_round(processed_op_dir, this_t_func, read_bin, is_swift
     prev_t_fp.close()
 
 @profile
-def get_dropout_antidropout(processed_op_dir, this_t_func, read_bin, is_swift, unresp_addrs, resp_addrs, addr_to_status, resp_addrs_this_round=None):
+def get_dropout_antidropout_resp_unresp(processed_op_dir, this_t_func, read_bin, is_swift, unresp_addrs, resp_addrs, addr_to_status, resp_addrs_this_round, unresp_addrs_this_round=None):
+
+    # NOTE: unresp_addrs in this function refers to unresp_addrs from the previous round. unresp_addrs_this_round refers to unresp_addrs in this round (same logic applies to resp_addrs and resp_addrs_this_round)
 
     this_t_fp = get_fp(processed_op_dir, this_t_func, read_bin, is_swift, "This")
 
@@ -277,9 +279,11 @@ def get_dropout_antidropout(processed_op_dir, this_t_func, read_bin, is_swift, u
                     addr_to_status[ipid] = 2
                     # antidropout_addrs.add(ipid)
 
-                if resp_addrs_this_round is not None:
-                    if gmpy.popcount(successful_resps) > 0:
-                        resp_addrs_this_round.add(ipid)
+                if gmpy.popcount(successful_resps) > 0:
+                    resp_addrs_this_round.add(ipid)
+                elif unresp_addrs_this_round is not None:
+                    if( (gmpy.popcount(losses) == gmpy.popcount(sent_pkts) ) and (gmpy.popcount(successful_resps) == 0) ):
+                        unresp_addrs_this_round.add(ipid)
                         
             data_chunk = ''
             
@@ -310,6 +314,9 @@ def get_dropout_antidropout(processed_op_dir, this_t_func, read_bin, is_swift, u
             if resp_addrs_this_round != None:
                 if successful_resps > 0:
                     resp_addrs_this_round.add(ipid)
+                elif unresp_addrs_this_round is not None:
+                    if losses == sent_pkts:
+                        unresp_addrs_this_round.add(ipid)
 
     this_t_fp.close()
 
@@ -677,46 +684,62 @@ def main():
     
     setup_stuff(processed_op_dir, this_t, this_t_round_end)
 
-    unresp_addrs = {} # These are the set of unresponsive addresses at the beginning of a round (i.e., they were unresponsive in the previous round)
-    resp_addrs = {} # These are the set of responsive addresses at the beginning of a round (i.e., they were responsive in the previous round)
+    # These are the set of responsive addresses at the beginning of a round (i.e., they were responsive in the previous round).
+    # For multi-round analyses, we will need resp_addrs from multiple rounds to identify addresses that had remained responsive, even when other addresses in the /24 had dropped out.
+    # Thus, maintain resp_addrs in a dict (each round is a key, value is a set of resp_addrs)
+    resp_addrs = {}
+
+    # These are the set of unresponsive addresses at the beginning of a round (i.e., they were unresponsive in the previous round)
+    # NOTE: We only need unresp_addrs from a single previous round. This is because unresp_addrs across multiple rounds are not necessary for multi-round analyses
+    # so we do not need to maintain unresp_addrs per round in a dict
+    # unresp_addrs = {} 
+
+    # addr_to_status contains information on whether an address had a dropout/antidropout
     addr_to_status = {}
 
-    # TODO: Do I really need to read files twice? I think I can calculate unresp_addrs and resp_addrs from round N while calculating dropouts and anti-dropouts for round N-1...
     for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
 
         # Get unresponsive and responsive addresses using the previous round.
         # responsive addresses are all the addresses that have the potential to dropout in this round.
         # unresponsive addresses are all the addresses that have the potential to anti-dropout in this round.
 
-        if roun-1 not in unresp_addrs:
-            unresp_addrs[roun-1] = set()
         if roun-1 not in resp_addrs:
             resp_addrs[roun-1] = set()
 
-        get_resp_unresp_prev_round(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1])
+        # For the very first iteration, we need to get resp_addrs and unresp_addrs using a separate function
+        if roun == -num_adjacent_rounds:
+            unresp_addrs_prev_round = set()
+            get_resp_unresp_prev_round(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs_prev_round, resp_addrs[roun-1])
 
         # print len(unresp_addrs)
 
         # Get dropout and antidropout addresses using this round.
+        # Also get responsive and unresponsive addresses from this round; they will be used for calculating dropouts and antidropouts the next round.
+        # We don't need unresponsive addresses for the last round, however.
+        
         # dropout addresses are all the addresses that responded last round but are unresponsive this round.
         # antidropout addresses are all the addresses that were unresponsive last round but responded this round.
-
-        # dropout_addrs = set()
-        # antidropout_addrs = set()
 
         if roun not in addr_to_status:
             addr_to_status[roun] = defaultdict(lambda:9999)
 
         if roun < num_adjacent_rounds:
-            get_dropout_antidropout(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun])
+            resp_addrs[roun] = set()
+            unresp_addrs_this_round = set()
+
         else:
-            if roun not in resp_addrs:
-                resp_addrs[roun] = set()
-            # Get resp_addrs for this round too since it is the last round. We need resp_addrs from the last round to identify which addresses remained responsive across multiple rounds (including the last round).
-            get_dropout_antidropout(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun], resp_addrs[roun])
+            # Do not get unresp_addrs_this_round for the last round. But we still need resp_addrs from the last round to identify which addresses remained responsive across multiple rounds (including the last round).            
+            resp_addrs[roun] = set()
+            unresp_addrs_this_round = None
+            
+        get_dropout_antidropout_resp_unresp(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs_prev_round, resp_addrs[roun-1], addr_to_status[roun], resp_addrs[roun], unresp_addrs_this_round)
+
+        # Update unresp_addrs for next round
+        unresp_addrs_prev_round = unresp_addrs_this_round
 
     # We're done with unresp_addrs, free memory
-    # del unresp_addrs
+    # TODO: Experiment with the following
+    # del unresp_addrs_prev_round
     # gc.collect()
 
     write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs)
