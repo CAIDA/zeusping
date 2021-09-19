@@ -52,9 +52,9 @@ import gc
 from collections import defaultdict
 import radix
 import pyipmeta
-
-zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
-sys.path.append(zeusping_utils_path + "/utils")
+    
+# zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+# sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
 if sys.version_info[0] == 2:
@@ -65,7 +65,24 @@ if sys.version_info[0] == 2:
 else:
     py_ver = 3
 
+    
+# No-op version of @profile, so that we don't need to keep uncommenting @profile when we're not using kernprof
+try:
+    # Python 2
+    import __builtin__ as builtins
+except ImportError:
+    # Python 3
+    import builtins
 
+try:
+    builtins.profile
+except AttributeError:
+    # No line profiler, provide a pass-through version
+    def profile(func): return func
+    builtins.profile = profile
+
+    
+@profile
 def split_ips(ip):
     parts = ip.strip().split('.')
     # print parts
@@ -76,12 +93,12 @@ def split_ips(ip):
 
     return oct1, oct2, oct3, oct4
 
-
+@profile
 def find_s24(ipv4_addr):
     oct1, oct2, oct3, oct4 = split_ips(ipv4_addr)
     return "{0}.{1}.{2}.0/24".format(oct1, oct2, oct3), oct4
 
-
+@profile
 def setup_stuff(processed_op_dir, this_t, this_t_round_end):
     mkdir_cmd = 'mkdir -p {0}/{1}_to_{2}/'.format(processed_op_dir, this_t, this_t_round_end)
     args = shlex.split(mkdir_cmd)
@@ -99,7 +116,7 @@ def setup_stuff(processed_op_dir, this_t, this_t_round_end):
             sys.stderr.write("Mkdir failed for {0}; exiting\n".format(mkdir_cmd) )
             sys.exit(1)
 
-            
+@profile         
 def get_fp(processed_op_dir, reqd_t, read_bin, is_swift, called_from):
 
     if read_bin == 1:
@@ -146,10 +163,10 @@ def get_fp(processed_op_dir, reqd_t, read_bin, is_swift, called_from):
         sys.stderr.write("{0}: {1}\n".format(called_from, reqd_t_file) )
         return reqd_t_fp
 
-            
-def get_resp_unresp_prev_round(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs):
+@profile            
+def get_resp_unresp_prev_round(processed_op_dir, this_t_func, read_bin, is_swift, unresp_addrs, resp_addrs):
 
-    prev_t = this_t - zeusping_helpers.ROUND_SECS
+    prev_t = this_t_func - zeusping_helpers.ROUND_SECS
 
     prev_t_fp = get_fp(processed_op_dir, prev_t, read_bin, is_swift, "Prev")
 
@@ -222,10 +239,10 @@ def get_resp_unresp_prev_round(processed_op_dir, this_t, read_bin, is_swift, unr
 
     prev_t_fp.close()
 
+@profile
+def get_dropout_antidropout(processed_op_dir, this_t_func, read_bin, is_swift, unresp_addrs, resp_addrs, addr_to_status, resp_addrs_this_round=None):
 
-def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp_addrs, resp_addrs, addr_to_status, resp_addrs_this_round=None):
-
-    this_t_fp = get_fp(processed_op_dir, this_t, read_bin, is_swift, "This")
+    this_t_fp = get_fp(processed_op_dir, this_t_func, read_bin, is_swift, "This")
 
     if read_bin == 1:
 
@@ -263,7 +280,9 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
                 if resp_addrs_this_round is not None:
                     if gmpy.popcount(successful_resps) > 0:
                         resp_addrs_this_round.add(ipid)
-                    
+                        
+            data_chunk = ''
+            
     else:
         
         for line in this_t_fp:
@@ -294,7 +313,7 @@ def get_dropout_antidropout(processed_op_dir, this_t, read_bin, is_swift, unresp
 
     this_t_fp.close()
 
-
+@profile
 def init_dicts(loc1_asn_to_status, loc2_asn_to_status, loc1, loc2, asn):
     if loc1 not in loc1_asn_to_status:
         loc1_asn_to_status[loc1] = {}
@@ -310,7 +329,8 @@ def init_dicts(loc1_asn_to_status, loc2_asn_to_status, loc1, loc2, asn):
 
 
 # is_loc1 indicates whether we are writing the larger administrative subdivision
-# if is_loc1 is True, then the larger administrative subdivision is country (if is_US == False) and U.S. state (if is_US == True). 
+# if is_loc1 is True, then the larger administrative subdivision is country (if is_US == False) and U.S. state (if is_US == True).
+@profile
 def write_ts_file(ts_fp, loc_asn_to_status, is_loc1):
 
     loc_to_status = {}
@@ -388,28 +408,24 @@ def write_ts_file(ts_fp, loc_asn_to_status, is_loc1):
             custom_name = "{0}".format(asn)
             ts_fp.write("{0}|{1}|{2}|{3}|{4}\n".format(ioda_key, custom_name, n_d, n_r, n_a) )
             
-        
-def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs):
+@profile     
+def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, resp_addrs):
 
     loc1_asn_to_status = defaultdict(nested_dict_factory)
     loc2_asn_to_status = defaultdict(nested_dict_factory)
 
-    # TODO!
-    # For /24s, I'll write a single file for sr as well. Each file will contain:
-    # </24> <dropout_sr> <responsive_sr> <antidropout_sr>, but where the three values will be in binary (with bit offsets indicating whether a particular address in the /24 experienced a dropout, was responsive, or had an anti-dropout).
-    
     if IS_COMPRESSED == 1:
         if MUST_WRITE_RDA == 1:
             if IS_TEST == 1:            
-                rda_op_fname = '{0}/{1}_to_{2}/rda_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
+                rda_op_fname = '{0}/{1}_to_{2}/rda_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
             else:
-                rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t, this_t_round_end)
+                rda_op_fname = '{0}/{1}_to_{2}/rda.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
             rda_op_fp = wandio.open(rda_op_fname, 'w')
     else:
         if IS_TEST == 1:
-            rda_op_fname = '{0}/{1}_to_{2}/rda_test'.format(processed_op_dir, this_t, this_t_round_end)
+            rda_op_fname = '{0}/{1}_to_{2}/rda_test'.format(processed_op_dir, this_t_func, this_t_round_end)
         else:
-            rda_op_fname = '{0}/{1}_to_{2}/rda'.format(processed_op_dir, this_t, this_t_round_end)
+            rda_op_fname = '{0}/{1}_to_{2}/rda'.format(processed_op_dir, this_t_func, this_t_round_end)
         rda_op_fp = open(rda_op_fname, 'w')
 
     this_roun_addr_to_status = addr_to_status[0]
@@ -424,12 +440,12 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
-        ipstr = socket.inet_ntoa(struct.pack('!L', addr))
+        ipstr = socket.inet_ntoa(struct.pack('!L', addr)) # TODO: This is expensive. Memoize?
         # else:
         #     ipstr = addr
 
         # Find ASN and loc details
-        asn = 'UNK'
+        # asn = 'UNK' # TODO: This is a redundant operation, needs to go.
         # Find ip_to_as, ip_to_loc
         rnode = rtree.search_best(ipstr)
         if rnode is None:
@@ -464,7 +480,7 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
                 
         ip_to_loc[ipstr] = [loc1, loc2]
 
-        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. # TODO: I will need some other way of representing a 32-byte (256 bit) integer representing the status of each /24.
+        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. 
         
         if addr in this_roun_addr_to_status:
             if this_roun_addr_to_status[addr] == 0:
@@ -503,19 +519,19 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
         rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
     if IS_TEST == 1:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda_test'.format(processed_op_dir, this_t, this_t_round_end)
+        ts_fname = '{0}/{1}_to_{2}/ts_rda_test'.format(processed_op_dir, this_t_func, this_t_round_end)
     else:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t, this_t_round_end)
+        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t_func, this_t_round_end)
     ts_fp = open(ts_fname, 'w')
     write_ts_file(ts_fp, loc1_asn_to_status, True)
     write_ts_file(ts_fp, loc2_asn_to_status, False)
     ts_fp.close()
 
     if IS_TEST == 1:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test'.format(processed_op_dir, this_t, this_t_round_end)
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
     else:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr'.format(processed_op_dir, this_t, this_t_round_end)
-    s24_fp = open(s24_fname, 'w') # TODO: Write in binary once we figure out how to
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr'.format(processed_op_dir, this_t_func, this_t_round_end)
+    s24_fp = open(s24_fname, 'w')
 
     for s24 in s24_to_sr_status:
         this_d = s24_to_sr_status[s24]
@@ -532,27 +548,29 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
 
         if IS_COMPRESSED == 1:
             if IS_TEST == 1:
-                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test.gz'.format(processed_op_dir, this_t, this_t_round_end)
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
             else:
-                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t, this_t_round_end)
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
             rda_multiround_op_fp = wandio.open(rda_multiround_op_fname, 'w')
         else:
             if IS_TEST == 1:
-                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test'.format(processed_op_dir, this_t, this_t_round_end)
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround_test'.format(processed_op_dir, this_t_func, this_t_round_end)
             else:
-                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround'.format(processed_op_dir, this_t, this_t_round_end)
+                rda_multiround_op_fname = '{0}/{1}_to_{2}/rda_multiround'.format(processed_op_dir, this_t_func, this_t_round_end)
             rda_multiround_op_fp = open(rda_multiround_op_fname, 'w')
 
     # TODO: Replace addr_to_status[-1] with prev_round_addr_to_status etc., to prevent repeated hashing
-    resp_all_rounds_addr_set = resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
-    to_write_addr_set = addr_to_status[-1].keys() | this_roun_addr_to_status.keys() | addr_to_status[1].keys() | resp_all_rounds_addr_set
+    # resp_all_rounds_addr_set = resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
+    resp_all_rounds_addr_set = resp_addrs[-2] & resp_addrs[-1] & resp_addrs[0] & resp_addrs[1]
+    # to_write_addr_set = addr_to_status[-1].keys() | this_roun_addr_to_status.keys() | addr_to_status[1].keys() | resp_all_rounds_addr_set
+    to_write_addr_set = addr_to_status[-1].keys() | this_roun_addr_to_status.keys() | resp_all_rounds_addr_set
 
     # addr_to_multiround_status = {}
     s24_to_mr_status = defaultdict(nested_dict_factory_int)
     for addr in sorted(to_write_addr_set):
         
         # if read_bin == 1:
-        ipstr = socket.inet_ntoa(struct.pack('!L', addr))
+        ipstr = socket.inet_ntoa(struct.pack('!L', addr)) # TODO: This is expensive. Memoize?
         # else:
         #     ipstr = addr
 
@@ -594,9 +612,10 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
                         loc1 = ctry_code
                         loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
             
-        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow. # TODO: I will need some other way of representing a 32-byte (256 bit) integer representing the status of each /24. 
+        s24, oct4 = find_s24(ipstr) # TODO: We need a faster way of identifying an address's /24, this uses a lot of string functions that are slow.
 
-        if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
+        # if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) or (addr_to_status[1][addr] == 0) ):
+        if( ( addr_to_status[-1][addr] == 0) or (addr_to_status[0][addr]== 0) ):
             if MUST_WRITE_RDA_MR == 1:
                 # addr_to_multiround_status[addr] = 0
                 loc1_asn_to_status[loc1][asn]["d"] += 1
@@ -615,8 +634,9 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
                 
             mask = 1<<int(oct4)
             s24_to_mr_status[s24]['r'] |= (mask)
-            
-        if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
+
+        # if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
+        if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) ):
             if MUST_WRITE_RDA_MR == 1:
                 # addr_to_multiround_status[addr] = 2
                 loc1_asn_to_status[loc1][asn]["a"] += 1
@@ -632,19 +652,19 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
         rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
         if IS_TEST == 1:
-            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
+            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
         else:
-            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t, this_t_round_end)
+            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t_func, this_t_round_end)
         ts_fp = open(ts_fname, 'w')
         write_ts_file(ts_fp, loc1_asn_to_status, True)
         write_ts_file(ts_fp, loc2_asn_to_status, False)
         ts_fp.close()
 
     if IS_TEST == 1:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(processed_op_dir, this_t, this_t_round_end)
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
     else:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr'.format(processed_op_dir, this_t, this_t_round_end)
-    s24_fp = open(s24_fname, 'w') # TODO: Write in binary once we figure out how to
+        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr'.format(processed_op_dir, this_t_func, this_t_round_end)
+    s24_fp = open(s24_fname, 'w')
 
     for s24 in s24_to_mr_status:
         this_d = s24_to_mr_status[s24]
@@ -652,7 +672,56 @@ def write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_ad
     
     s24_fp.close()
             
+@profile
+def main():
+    
+    setup_stuff(processed_op_dir, this_t, this_t_round_end)
 
+    unresp_addrs = {} # These are the set of unresponsive addresses at the beginning of a round (i.e., they were unresponsive in the previous round)
+    resp_addrs = {} # These are the set of responsive addresses at the beginning of a round (i.e., they were responsive in the previous round)
+    addr_to_status = {}
+
+    # TODO: Do I really need to read files twice? I think I can calculate unresp_addrs and resp_addrs from round N while calculating dropouts and anti-dropouts for round N-1...
+    for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
+
+        # Get unresponsive and responsive addresses using the previous round.
+        # responsive addresses are all the addresses that have the potential to dropout in this round.
+        # unresponsive addresses are all the addresses that have the potential to anti-dropout in this round.
+
+        if roun-1 not in unresp_addrs:
+            unresp_addrs[roun-1] = set()
+        if roun-1 not in resp_addrs:
+            resp_addrs[roun-1] = set()
+
+        get_resp_unresp_prev_round(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1])
+
+        # print len(unresp_addrs)
+
+        # Get dropout and antidropout addresses using this round.
+        # dropout addresses are all the addresses that responded last round but are unresponsive this round.
+        # antidropout addresses are all the addresses that were unresponsive last round but responded this round.
+
+        # dropout_addrs = set()
+        # antidropout_addrs = set()
+
+        if roun not in addr_to_status:
+            addr_to_status[roun] = defaultdict(lambda:9999)
+
+        if roun < num_adjacent_rounds:
+            get_dropout_antidropout(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun])
+        else:
+            if roun not in resp_addrs:
+                resp_addrs[roun] = set()
+            # Get resp_addrs for this round too since it is the last round. We need resp_addrs from the last round to identify which addresses remained responsive across multiple rounds (including the last round).
+            get_dropout_antidropout(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun], resp_addrs[roun])
+
+    # We're done with unresp_addrs, free memory
+    # del unresp_addrs
+    # gc.collect()
+
+    write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs)
+
+    
 campaign = sys.argv[1]
 this_t = int(sys.argv[2])
 read_bin = int(sys.argv[3]) # If read_bin == 1, we are reading binary input from resps_per_round.gz. Else we are reading ascii input from resps_per_addr.gz
@@ -662,8 +731,8 @@ pfx2AS_fn = sys.argv[5]
 netacq_date = sys.argv[6]
 scope = sys.argv[7]
 
-MUST_WRITE_RDA = 0
-MUST_WRITE_RDA_MR = 0
+MUST_WRITE_RDA = 1
+MUST_WRITE_RDA_MR = 1
 
 idx_to_loc1_name = {}
 idx_to_loc1_fqdn = {}
@@ -723,52 +792,8 @@ if read_bin == 1:
 # processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
 
 if read_bin == 1:
-    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest2/'.format(campaign)
+    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest3/'.format(campaign)
 else:
     processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
 
-setup_stuff(processed_op_dir, this_t, this_t_round_end)
-
-
-unresp_addrs = {} # These are the set of unresponsive addresses at the beginning of a round (i.e., they were unresponsive in the previous round)
-resp_addrs = {} # These are the set of responsive addresses at the beginning of a round (i.e., they were responsive in the previous round)
-addr_to_status = {}
-
-for roun in range(-num_adjacent_rounds, (num_adjacent_rounds+1) ):
-
-    # Get unresponsive and responsive addresses using the previous round.
-    # responsive addresses are all the addresses that have the potential to dropout in this round.
-    # unresponsive addresses are all the addresses that have the potential to anti-dropout in this round.
-
-    if roun-1 not in unresp_addrs:
-        unresp_addrs[roun-1] = set()
-    if roun-1 not in resp_addrs:
-        resp_addrs[roun-1] = set()
-
-    get_resp_unresp_prev_round(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1])
-
-    # print len(unresp_addrs)
-
-    # Get dropout and antidropout addresses using this round.
-    # dropout addresses are all the addresses that responded last round but are unresponsive this round.
-    # antidropout addresses are all the addresses that were unresponsive last round but responded this round.
-
-    # dropout_addrs = set()
-    # antidropout_addrs = set()
-
-    if roun not in addr_to_status:
-        addr_to_status[roun] = defaultdict(lambda:9999)
-
-    if roun < num_adjacent_rounds:
-        get_dropout_antidropout(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun])
-    else:
-        if roun not in resp_addrs:
-            resp_addrs[roun] = set()
-        # Get resp_addrs for this round too since it is the last round. We need resp_addrs from the last round to identify which addresses remained responsive across multiple rounds (including the last round).
-        get_dropout_antidropout(processed_op_dir, this_t + roun * zeusping_helpers.ROUND_SECS, read_bin, is_swift, unresp_addrs[roun-1], resp_addrs[roun-1], addr_to_status[roun], resp_addrs[roun])
-        
-# We're done with unresp_addrs, free memory
-# del unresp_addrs
-# gc.collect()
-
-write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs)
+main()
