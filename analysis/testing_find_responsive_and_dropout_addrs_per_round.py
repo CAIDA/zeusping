@@ -61,7 +61,7 @@ iggy_rounds.add(1617561600)
 for round_tstamp in range(start_round_epoch, end_round_epoch, zeusping_helpers.ROUND_SECS):
 
     # Skip rounds where there are known anomalies (that are not really bugs but just anomalies)
-    if mode == 'bin':
+    if test_mode == 'bin':
         if round_tstamp in iggy_rounds:
             continue
     
@@ -70,8 +70,8 @@ for round_tstamp in range(start_round_epoch, end_round_epoch, zeusping_helpers.R
         new_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testsimple/{0}_to_{1}/rda_test.gz".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
         temp_new_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testsimple/{0}_to_{1}/temp_rda_test".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
     else:
-        new_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testbin/{0}_to_{1}/rda_test.gz".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
-        temp_new_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testbin/{0}_to_{1}/temp_rda_test".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        new_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testbintest3/{0}_to_{1}/rda_test.gz".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        temp_new_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testbintest3/{0}_to_{1}/temp_rda_test".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
         
     cmd = "zcat {0} | sort > {1}".format(new_format_fname, temp_new_format_fname)
     print(cmd)
@@ -87,8 +87,8 @@ for round_tstamp in range(start_round_epoch, end_round_epoch, zeusping_helpers.R
     #         print(line)
 
     # Next sort the old format file
-    old_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testsimple/responsive_and_dropout_addrs_1617495000to1617753600/{0}_to_{1}.gz".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
-    temp_old_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testsimple/responsive_and_dropout_addrs_1617495000to1617753600/temp_{0}_to_{1}".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    old_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testsimple/responsive_and_dropout_addrs/{0}_to_{1}.gz".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    temp_old_format_fname = "/scratch/zeusping/data/processed_op_CA_ME_testsimple/responsive_and_dropout_addrs/temp_{0}_to_{1}".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
     cmd = "zcat {0} | sort > {1}".format(old_format_fname, temp_old_format_fname)
     print(cmd)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
