@@ -154,7 +154,6 @@ def build_setofstrs_from_file(fname):
     return s
 
 
-# TODO: This function will change once we implement a better per-s24 file representation
 def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets, is_s24_str=True):
 
     if is_s24_str:
