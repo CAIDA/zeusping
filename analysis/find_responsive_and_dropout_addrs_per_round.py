@@ -35,7 +35,7 @@
 # This script uses processed ping responses from round t-1 and round t to calculate the number of dropouts, responsive, and antidropout addresses per round
 # Conceptually, at the beginning of a round t, there are N (say 1000) addresses that responded in round t-1 and can potentially dropout this round. Let's suppose there are D dropouts (say 100), then 900 of them continued to respond in this round as well (NOTE: the way erosprober works, if an address hasn't dropped out, then it *must* be responsive since all addresses are pinged each round). However, it is possible that some addresses dropped out due to reassignment so M *other* addresses (say 50) lit up. Then the total number of outages is D - M.
 
-# We took up about 10G of memory. We previously required only 1G of memory.
+# We took up about 10G of memory (now seem to be taking up ~6.5G of memory). We previously required only 1G of memory.
 
 import sys
 import os
@@ -53,8 +53,8 @@ from collections import defaultdict
 import radix
 import pyipmeta
     
-# zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
-# sys.path.append(zeusping_utils_path + "/utils")
+zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
 if sys.version_info[0] == 2:
@@ -439,7 +439,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
 
     to_write_addr_set = this_roun_addr_to_status.keys() | resp_addrs[-1]
 
-    ip_to_asn = {}
+    # ip_to_asn = {}
     ip_to_loc = {}
     # ipint_to_ipstr = {}
 
@@ -461,7 +461,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
             asn = 'UNK'
         else:
             asn = rnode.data["origin"]
-        ip_to_asn[ipstr] = asn
+        # ip_to_asn[ipstr] = asn
 
         # Let loc1 refer to the first-level location and loc2 refer to the second-level location
         # In the US, loc1 is state and loc2 is county
@@ -500,7 +500,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 if MUST_WRITE_RDA == 1:
                     rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
-                mask = bitset_cache[int(oct4)]
+                mask = bitset_cache[oct4]
                 s24_to_sr_status[s24]['r'] |= (mask)
                 
                 loc1_asn_to_status[loc1][asn]["d"] += 1
@@ -513,7 +513,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 # if addr_to_status is not 0, it *has* to be 2
                 loc1_asn_to_status[loc1][asn]["a"] += 1
                 loc2_asn_to_status[loc2][asn]["a"] += 1
-                mask = bitset_cache[int(oct4)]
+                mask = bitset_cache[oct4]
                 s24_to_sr_status[s24]['a'] |= (mask)
                 if MUST_WRITE_RDA == 1:
                     rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
@@ -521,7 +521,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
         else:
             loc1_asn_to_status[loc1][asn]["r"] += 1
             loc2_asn_to_status[loc2][asn]["r"] += 1
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_sr_status[s24]['r'] |= (mask)
             if MUST_WRITE_RDA == 1:
                 rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
@@ -593,21 +593,22 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
 
         if MUST_WRITE_RDA_MR == 1:
             # Not all the mr IP addresses will be in the sr IP addresses.
-            # But for those that are, let's find asn and loc details using the dict, to save processing time.
-            if ipstr in ip_to_asn:
-                asn = ip_to_asn[ipstr]
+            # But for those that are, let's find loc details using the dict, to save processing time.
+
+            # Caching ip_to_asn was not helping significantly with speed, so decided to not use the cache.
+            asn = 'UNK'
+            # Find ip_to_as, ip_to_loc
+            rnode = rtree.search_best(ipstr)
+            if rnode is None:
+                asn = 'UNK'
+            else:
+                asn = rnode.data["origin"]
+            
+            if ipstr in ip_to_loc:
+                # asn = ip_to_asn[ipstr]
                 [loc1, loc2] = ip_to_loc[ipstr]
 
             else:
-
-                # Find ASN and loc details
-                asn = 'UNK'
-                # Find ip_to_as, ip_to_loc
-                rnode = rtree.search_best(ipstr)
-                if rnode is None:
-                    asn = 'UNK'
-                else:
-                    asn = rnode.data["origin"]
 
                 loc1 = 'UNKLOC1'
                 loc2 = 'UNKLOC2'
@@ -641,7 +642,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["d"] += 1
                 rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
                 
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_mr_status[s24]['d'] |= (mask)
             
         elif addr in resp_all_rounds_addr_set:
@@ -651,7 +652,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
                 
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_mr_status[s24]['r'] |= (mask)
 
         # if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
@@ -662,7 +663,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["a"] += 1
                 rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
                 
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_mr_status[s24]['a'] |= (mask)
             
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
