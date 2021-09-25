@@ -73,7 +73,7 @@ def find_rda(fname):
     return status
 
 
-def find_s24_status_simple(this_status, s24_to_status_simple):
+def find_s24_status_from_rda(this_status, s24_to_status_simple):
     for addr_status in this_status:
         for ipid in this_status[addr_status]:
             s24 = ipid & s24_mask
@@ -106,31 +106,37 @@ def find_s24_status_new(fname, s24_to_status_new):
         
     
 def test_round_ts_s24(round_tstamp):
-    this_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
-    this_status = find_rda(this_round_rda_simple)
 
-    s24_to_status_simple = {}
-    # NOTE: I can also populate s24_to_status_simple using the rda_mr file, after ensuring that rda_mr is the correct file.
-    find_s24_status_simple(this_status, s24_to_status_simple)
+    if mode == "sr":
+        this_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        this_status_rda = find_rda(this_round_rda_simple)
+    else:
+        this_round_rda_mr = "{0}/{1}_to_{2}/rda_multiround_test.gz".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        this_status_rda = find_rda(this_round_rda_mr)
+
+    s24_to_status_rda = {}
+    find_s24_status_from_rda(this_status_rda, s24_to_status_rda)
 
     s24_to_status_new = {}
-    ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_sr_test".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    if mode == "sr":
+        ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_sr_test".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    else:
+        ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_mr_test".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
     find_s24_status_new(ts_s24_fname, s24_to_status_new)
 
-    # TODO: Resume here. Add another check. Make sure that s24_to_status_new and s24_to_status_simple have the same number of /24s
-    if len(s24_to_status_new) != len(s24_to_status_simple):
+    if len(s24_to_status_new) != len(s24_to_status_rda):
         sys.stdout.write("Bad. Number of s24s is different\n".format(s24) )
         sys.exit(1)
     else:
         sys.stdout.write("Good. Number of s24s is identical in round {0}\n".format(round_tstamp) )
     
     for s24 in s24_to_status_new:
-        if s24 not in s24_to_status_simple:
+        if s24 not in s24_to_status_rda:
             sys.stdout.write("Bad. Missing s24: {0}\n".format(s24) )
             sys.exit(1)
         else:
             
-    #         for oct4 in s24_to_status_simple[s24]['0']:
+    #         for oct4 in s24_to_status_rda[s24]['0']:
     #             if oct4 in s24_to_status_new[s24]['0']:
     #                 s24_str = socket.inet_ntoa(struct.pack('!L', s24))
     #                 # sys.stderr.write("{0} {1}\n".format(s24_str, s24) )
@@ -139,21 +145,21 @@ def test_round_ts_s24(round_tstamp):
     #                 sys.stdout.write("Good. Addr in both: {0}{1}\n".format(s24_pref, oct4) )
     #                 # sys.exit(1)
 
-    #         # for oct4 in s24_to_status_simple[s24]['1']:
+    #         # for oct4 in s24_to_status_rda[s24]['1']:
     #         #     if oct4 in s24_to_status_new[s24]['1']:
     #         #         s24_str = socket.inet_ntoa(struct.pack('!L', s24))
     #         #         s24_pref = s24_str[:-1]
     #         #         sys.stdout.write("Good. Addr in both: {0}{1}\n".format(s24_pref, oct4) )
                 
-    #         # for oct4 in s24_to_status_simple[s24]['2']:
+    #         # for oct4 in s24_to_status_rda[s24]['2']:
     #         #     if oct4 in s24_to_status_new[s24]['2']:
     #         #         s24_str = socket.inet_ntoa(struct.pack('!L', s24))
     #         #         s24_pref = s24_str[:-1]
     #         #         sys.stdout.write("Good. Addr in both: {0}{1}\n".format(s24_pref, oct4) )
 
-            if ( (s24_to_status_simple[s24]['0'] == s24_to_status_new[s24]['0']) and
-                 (s24_to_status_simple[s24]['1'] == s24_to_status_new[s24]['1']) and
-                 (s24_to_status_simple[s24]['2'] == s24_to_status_new[s24]['2'])
+            if ( (s24_to_status_rda[s24]['0'] == s24_to_status_new[s24]['0']) and
+                 (s24_to_status_rda[s24]['1'] == s24_to_status_new[s24]['1']) and
+                 (s24_to_status_rda[s24]['2'] == s24_to_status_new[s24]['2'])
             ):
                 sys.stdout.write("Good. s24 {0} in Round {1} confirmed\n".format(s24, round_tstamp) )
             else:
@@ -161,8 +167,9 @@ def test_round_ts_s24(round_tstamp):
                 sys.exit(1)
                  
             
-start_round_epoch = int(sys.argv[1])
-end_round_epoch = int(sys.argv[2])
+mode = sys.argv[1] # mode == sr for testing sr output and mr for testing mr output
+start_round_epoch = int(sys.argv[2])
+end_round_epoch = int(sys.argv[3])
 
 # These are rounds with known anomalies that we want to skip the diff test
 iggy_rounds = set()
