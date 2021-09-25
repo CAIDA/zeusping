@@ -68,25 +68,25 @@ def find_rda(fname):
     return status
 
     
-def test_round_rda_mr(round_tstamp):
+def test_simple_round_rda_mr(round_tstamp):
     prev_prev_round_tstamp = round_tstamp - (2 * zeusping_helpers.ROUND_SECS)
 
-    prev_prev_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, prev_prev_round_tstamp, prev_prev_round_tstamp + zeusping_helpers.ROUND_SECS)
+    prev_prev_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(old_path, prev_prev_round_tstamp, prev_prev_round_tstamp + zeusping_helpers.ROUND_SECS)
     prev_prev_status = find_rda(prev_prev_round_rda_simple)
 
     prev_round_tstamp = round_tstamp - zeusping_helpers.ROUND_SECS
-    prev_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, prev_round_tstamp, prev_round_tstamp + zeusping_helpers.ROUND_SECS)
+    prev_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(old_path, prev_round_tstamp, prev_round_tstamp + zeusping_helpers.ROUND_SECS)
     prev_status = find_rda(prev_round_rda_simple)
 
-    this_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    this_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(old_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
     this_status = find_rda(this_round_rda_simple)
     
     next_round_tstamp = round_tstamp + zeusping_helpers.ROUND_SECS
-    next_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, next_round_tstamp, next_round_tstamp + zeusping_helpers.ROUND_SECS)
+    next_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(old_path, next_round_tstamp, next_round_tstamp + zeusping_helpers.ROUND_SECS)
     next_status = find_rda(next_round_rda_simple)
 
     next_next_round_tstamp = round_tstamp + (2 * zeusping_helpers.ROUND_SECS)
-    next_next_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(simple_path, next_next_round_tstamp, next_next_round_tstamp + zeusping_helpers.ROUND_SECS)
+    next_next_round_rda_simple = "{0}/responsive_and_dropout_addrs/{1}_to_{2}.gz".format(old_path, next_next_round_tstamp, next_next_round_tstamp + zeusping_helpers.ROUND_SECS)
     next_next_status = find_rda(next_next_round_rda_simple)
     
     rda_mr_fname = "{0}/{1}_to_{2}/rda_multiround_test.gz".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
@@ -192,14 +192,102 @@ def test_round_rda_mr(round_tstamp):
         sys.exit(1)
 
     sys.stdout.flush()
-    
-start_round_epoch = int(sys.argv[1])
-end_round_epoch = int(sys.argv[2])
 
-simple_path = "/scratch/zeusping/data/processed_op_CA_ME_testsimple"
+
+def test_mrptn_round_rda_mr(round_tstamp):
+    old_rda_mr_fname = "{0}/{1}_to_{2}/rda_multiround_test.gz".format(old_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    old_rda_status = find_rda(old_rda_mr_fname)
+
+    rda_mr_fname = "{0}/{1}_to_{2}/rda_multiround_test.gz".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+    rda_status = find_rda(rda_mr_fname)
+
+    prev_prev_round_tstamp = round_tstamp - (2*zeusping_helpers.ROUND_SECS)
+    prev_prev_round_rda_sr_fname = "{0}/{1}_to_{2}/rda_test.gz".format(new_path, prev_prev_round_tstamp, prev_prev_round_tstamp + zeusping_helpers.ROUND_SECS)
+    prev_prev_status = find_rda(prev_prev_round_rda_sr_fname)
+    
+    prev_round_tstamp = round_tstamp - zeusping_helpers.ROUND_SECS
+    prev_round_rda_sr_fname = "{0}/{1}_to_{2}/rda_test.gz".format(new_path, prev_round_tstamp, prev_round_tstamp + zeusping_helpers.ROUND_SECS)
+    prev_status = find_rda(prev_round_rda_sr_fname)
+    
+    next_round_tstamp = round_tstamp + zeusping_helpers.ROUND_SECS
+    next_round_rda_sr_fname = "{0}/{1}_to_{2}/rda_test.gz".format(new_path, next_round_tstamp, next_round_tstamp + zeusping_helpers.ROUND_SECS)
+    next_status = find_rda(next_round_rda_sr_fname)
+
+    # Check dropouts
+    if len(old_rda_status['0']) > len(rda_status['0']):
+        sys.stdout.write("Good. old_rda has {0} mr dropouts while rda has {1} mr dropouts in round {2}\n".format(len(old_rda_status['0']), len(rda_status['0']), round_tstamp ) )
+
+        # old_rda should have dropouts that include dropouts from next_round. Subtract them. But add back addresses that had dropouts in *both* next_round and prev_round.
+        correct_dropouts = (old_rda_status['0'] - next_status['0']) | (prev_status['0'] & next_status['0'])
+        if correct_dropouts == rda_status['0']:
+            sys.stdout.write("Good. Correct calculation of dropouts in round {0}\n".format(round_tstamp ) )
+        else:
+            sys.stdout.write("Bad. {0} correct_dropouts, {1} rda_mr dropouts; incorrect calculation of dropouts in round {2}\n".format(len(correct_dropouts), len(rda_status['0']), round_tstamp ) )
+            sys.exit(1)
+    else:
+        sys.stdout.write("Bad. old_rda has {0} mr dropouts while rda has {1} mr dropouts in round {2}\n".format(len(old_rda_status['0']), len(rda_status['0']), round_tstamp ) )
+        sys.exit(1)
+
+    # Check antidropouts        
+    if len(old_rda_status['2']) > len(rda_status['2']):
+        sys.stdout.write("Good. old_rda has {0} mr antidropouts while rda has {1} mr antidropouts in round {2}\n".format(len(old_rda_status['2']), len(rda_status['2']), round_tstamp ) )
+
+        # old_rda should have antidropouts that include antidropouts from next_round. Subtract them. But add back addresses that had antidropouts in *both* next_round and prev_round.
+        correct_antidropouts = (old_rda_status['2'] - next_status['2']) | (prev_status['2'] & next_status['2'])
+        if correct_antidropouts == rda_status['2']:
+            sys.stdout.write("Good. Correct calculation of antidropouts in round {0}\n".format(round_tstamp ) )
+        else:
+            sys.stdout.write("Bad. {0} correct_antidropouts, {1} rda_mr antidropouts; incorrect calculation of antidropouts in round {2}\n".format(len(correct_antidropouts), len(rda_status['2']), round_tstamp ) )
+            sys.exit(1)
+    else:
+        sys.stdout.write("Bad. old_rda has {0} mr antidropouts while rda has {1} mr antidropouts in round {2}\n".format(len(old_rda_status['2']), len(rda_status['2']), round_tstamp ) )
+        sys.exit(1)
+
+    # Check responsive
+    if len(old_rda_status['1']) > len(rda_status['1']):
+        sys.stdout.write("Good. old_rda has {0} mr resps while rda has {1} mr resps in round {2}\n".format(len(old_rda_status['1']), len(rda_status['1']), round_tstamp ) )
+
+        correct_resps = old_rda_status['1'] & prev_status['1']
+        if correct_resps == rda_status['1']:
+            sys.stdout.write("Good. Correct calculation of resps in round {0}\n".format(round_tstamp ) )
+        else:
+            sys.stdout.write("Bad. {0} correct_resps, {1} rda_mr resps; incorrect calculation of resps in round {2}\n".format(len(correct_resps), len(rda_status['1']), round_tstamp ) )
+            sys.exit(1)
+
+        # Most rem_addrs are addresses that had been out during prev_prev but experienced an anti-dropout during prev            
+        # rem_addrs = ( (old_rda_status['1'] - rda_status['1']) - prev_prev_status['0'])
+        # sys.stderr.write("{0} remaining addresses\n".format(len(rem_addrs)) )
+        # for addr in rem_addrs:
+        #     sys.stderr.write("{0}\n".format(addr) )
+
+        # After subtracting anti-dropouts during prev round, we are left with a handful of addresses that had ICMP error related weirdness
+        # rem_addrs = ( ( (old_rda_status['1'] - rda_status['1']) - prev_prev_status['0']) - prev_status['2'])
+        # sys.stderr.write("{0} remaining addresses\n".format(len(rem_addrs)) )
+        # for addr in rem_addrs:
+        #     sys.stderr.write("{0}\n".format(addr) )
+        
+    else:
+        sys.stdout.write("Bad. old_rda has {0} mr resps while rda has {1} mr resps in round {2}\n".format(len(old_rda_status['1']), len(rda_status['1']), round_tstamp ) )
+        sys.exit(1)
+    
+    
+test_mode = sys.argv[1] # simple to test against old method, mrptn to test against method where we considered dropouts and anti-dropouts across prev, this, next    
+start_round_epoch = int(sys.argv[2])
+end_round_epoch = int(sys.argv[3])
+
+
+if test_mode == "simple":
+    old_path = "/scratch/zeusping/data/processed_op_CA_ME_testsimple"
+else:
+    old_path = "/scratch/zeusping/data/processed_op_CA_ME_testbintest2"
 new_path = "/scratch/zeusping/data/processed_op_CA_ME_testbintest3"
+
 
 for round_tstamp in range(start_round_epoch, end_round_epoch, zeusping_helpers.ROUND_SECS):
     sys.stderr.write("Processing round {0}\n".format(round_tstamp) )
-    test_round_rda_mr(round_tstamp)
+
+    if test_mode == "simple":
+        test_simple_round_rda_mr(round_tstamp)
+    else:
+        test_mrptn_round_rda_mr(round_tstamp)
     
