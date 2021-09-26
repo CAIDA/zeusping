@@ -537,20 +537,22 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
     if MUST_WRITE_RDA == 1:                
         rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
-    if IS_TEST == 1:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-    else:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t_func, this_t_round_end)
-    ts_fp = open(ts_fname, 'w')
+    if IS_COMPRESSED == 1:
+        if IS_TEST == 1:
+            ts_fname = '{0}/{1}_to_{2}/ts_rda_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        else:
+            ts_fname = '{0}/{1}_to_{2}/ts_rda.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+    ts_fp = wandio.open(ts_fname, 'w')
     write_ts_file(ts_fp, loc1_asn_to_status, True)
     write_ts_file(ts_fp, loc2_asn_to_status, False)
     ts_fp.close()
 
-    if IS_TEST == 1:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-    else:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr'.format(processed_op_dir, this_t_func, this_t_round_end)
-    s24_fp = open(s24_fname, 'w')
+    if IS_COMPRESSED == 1:
+        if IS_TEST == 1:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        else:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_sr.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        s24_fp = wandio.open(s24_fname, 'w')
 
     for s24 in s24_to_sr_status:
         this_d = s24_to_sr_status[s24]
@@ -679,20 +681,22 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
     if MUST_WRITE_RDA_MR == 1:
         rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
-        if IS_TEST == 1:
-            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-        else:
-            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t_func, this_t_round_end)
-        ts_fp = open(ts_fname, 'w')
+        if IS_COMPRESSED == 1:
+            if IS_TEST == 1:
+                ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+            else:
+                ts_fname = '{0}/{1}_to_{2}/ts_rda_mr.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        ts_fp = wandio.open(ts_fname, 'w')
         write_ts_file(ts_fp, loc1_asn_to_status, True)
         write_ts_file(ts_fp, loc2_asn_to_status, False)
         ts_fp.close()
 
-    if IS_TEST == 1:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-    else:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr'.format(processed_op_dir, this_t_func, this_t_round_end)
-    s24_fp = open(s24_fname, 'w')
+    if IS_COMPRESSED == 1:        
+        if IS_TEST == 1:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        else:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_mr.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        s24_fp = wandio.open(s24_fname, 'w')
 
     for s24 in s24_to_mr_status:
         this_d = s24_to_mr_status[s24]
@@ -864,7 +868,10 @@ def init():
 
     global processed_op_dir
     if read_bin == 1:
-        processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest3/'.format(campaign)
+        if IS_TEST == 1:
+            processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest3/'.format(campaign)
+        else:
+            processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_rda/'.format(campaign)
     else:
         processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
 
