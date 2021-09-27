@@ -115,12 +115,14 @@ def populate_s24_to_dets_given_addrfile(fname, typ):
     for line in fp:
 
         parts = line.strip().split('|')
-        addr = parts[0].strip()
+        ipstr = parts[0].strip()
+
+        ipid = struct.unpack("!I", socket.inet_aton(ipstr))[0]
 
         if typ == "pinged":
-            pinged_addrs.add(addr)
+            pinged_addrs.add(ipid)
 
-        s24 = find_s24(addr)
+        s24 = ipid & s24_mask
 
         if s24 not in s24_to_dets:
             # s24_to_dets[s24] = {"pinged" : set(), "resp" : set()}
@@ -135,19 +137,23 @@ def populate_s24_to_dets_given_addrfile(fname, typ):
             # s24_to_dets can take on keys "d", "r", "a" for singleround modes. For multiround modes, we will use s24_to_rda_dets for "d", "r", "a"
             s24_to_dets[s24] = defaultdict(set)
 
-        s24_to_dets[s24][typ].add(addr)
+        s24_to_dets[s24][typ].add(ipid)
 
     if typ == "pinged":
         return pinged_addrs
 
-# The input to this function is a file with an s24 and the median responsive addresses in that s24 on each line.    
+# The input to this function is a file with an s24 and the median responsive addresses in that s24 on each line.
 def populate_s24_to_resps_given_s24file(resp_s24s_fname):
     s24_to_resps = defaultdict(int)
     resp_s24s_fp = open(resp_s24s_fname)
     for line in resp_s24s_fp:
         parts = line.strip().split('|')
 
-        s24 = parts[0]
+        s24_str = parts[0]
+        s24_dot0_ipstr = s24_str[:-3]
+        s24_ipid = struct.unpack("!I", socket.inet_aton(s24_dot0_ipstr))[0]
+        s24 = s24_ipid & s24_mask
+        
         resp = int(float(parts[1]))
         s24_to_resps[s24] = resp
 
@@ -163,8 +169,8 @@ def populate_s24_to_resps_given_s24file(resp_s24s_fname):
 def find_reqd_s24_set(pinged_addrs):
     reqd_s24_set = set()
 
-    for addr in pinged_addrs:
-        s24 = find_s24(addr)
+    for ipid in pinged_addrs:
+        s24 = ipid & s24_mask
 
         reqd_s24_set.add(s24)
 
@@ -210,28 +216,19 @@ def populate_s24_to_round_status_mr(fname, reqd_s24_set, s24_to_dets):
 
         parts = line.strip().split('|')
 
-        s24 = parts[0].strip()
+        s24 = int(parts[0].strip() )
 
         if s24 not in reqd_s24_set:
             continue
 
         d_addrs = int(parts[1])
-        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
-        # if 'd' not in s24_to_dets[s24]:
-        #     s24_to_dets[s24]['d'] = set()
-        zeusping_helpers.find_addrs_in_s24_with_status(s24, d_addrs, 'd', s24_to_dets[s24])
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, d_addrs, 'd', s24_to_dets[s24], is_s24_str=False)
         
         r_addrs = int(parts[2])
-        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
-        # if 'r' not in s24_to_dets[s24]:
-        #     s24_to_dets[s24]['r'] = set()
-        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets[s24])
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets[s24], is_s24_str=False)
 
         a_addrs = int(parts[3])
-        # NOTE: The following is not necessary since s24_to_dets = defaultdict(set)
-        # if 'a' not in s24_to_dets[s24]:
-        #     s24_to_dets[s24]['a'] = set()
-        zeusping_helpers.find_addrs_in_s24_with_status(s24, a_addrs, 'a', s24_to_dets[s24])
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, a_addrs, 'a', s24_to_dets[s24], is_s24_str=False)
 
 
 # simple-oneround for the mode where we use the output of swift_process_round_simple for single round.
@@ -241,6 +238,11 @@ mode = sys.argv[1]
 campaign = sys.argv[2]
 aggr = sys.argv[3]
 asn = sys.argv[4]
+
+s24_mask = 0
+for i in range(24):
+    s24_mask |= 1 << i
+s24_mask = s24_mask << 8
 
 status_to_char = {"0" : "d", "1" : "r", "2" : "a"}
 s24_to_dets = {}
@@ -263,30 +265,27 @@ if mode == "simple-oneround":
         sys.stdout.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
         
 elif mode == "mr-oneround":
-    # inp_path = '/scratch/zeusping/data/processed_op_CA_ME_testbintest1'
     inp_path = sys.argv[5]
     reqd_t = int(sys.argv[6])
 
-    # resp_s24s_fname = sys.argv[5] # pinged_ips is a list of ips, but resp_s24s is a list of s24s.
-    # resp_s24s_fname = './data/typical_resps_per_s24_1616889600to1617494400'.format() # TODO: Encode the week in which this falls to find the correct s24 file. # TODO: Change the directory.
     this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
     resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.
     sys.stderr.write("resp_s24s_fname: {0}\n".format(resp_s24s_fname) )
     s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
 
-    # TODO: Change specific_round_fname to be compatible with compression
-    specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
+    specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr_test.gz'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
 
     reqd_t_dt = datetime.datetime.utcfromtimestamp(reqd_t)
     reqd_t_dt_str = '{0}-{1}-{2}T{3}-{4}'.format(reqd_t_dt.year, reqd_t_dt.strftime("%m"), reqd_t_dt.strftime("%d"), reqd_t_dt.strftime("%H"), reqd_t_dt.strftime("%M") )
     
-    op_fname = './data/for_crispr/for_alex/s24s_multiroundfate_{0}-{1}_{2}_{3}'.format(aggr, asn, reqd_t, reqd_t_dt_str)
+    op_fname = './data/for_crispr_usenix21/for_alex/s24s_multiroundfate_{0}-{1}_{2}_{3}'.format(aggr, asn, reqd_t, reqd_t_dt_str)
     op_fp = open(op_fname, 'w')
     
     for s24 in s24_to_dets:
-        op_fp.write("{0} {1} {2} {3} {4}\n".format(s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
+        s24_ipstr = socket.inet_ntoa(struct.pack('!L', s24))
+        op_fp.write("{0}/24 {1} {2} {3} {4}\n".format(s24_ipstr, len(s24_to_dets[s24]["pinged"]), len(s24_to_dets[s24]["d"]),  len(s24_to_dets[s24]["r"]), s24_to_resps[s24] ) )
 
 elif mode == "mr-multiround":
     inp_path = sys.argv[5]
