@@ -119,9 +119,9 @@ def test_round_ts_s24(round_tstamp):
 
     s24_to_status_new = {}
     if mode == "sr":
-        ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_sr_test".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_sr_test.gz".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
     else:
-        ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_mr_test".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        ts_s24_fname = "{0}/{1}_to_{2}/ts_s24_mr_test.gz".format(new_path, round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
     find_s24_status_new(ts_s24_fname, s24_to_status_new)
 
     if len(s24_to_status_new) != len(s24_to_status_rda):

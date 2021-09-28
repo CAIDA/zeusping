@@ -75,9 +75,9 @@ def convert_aggr_to_oldfname(aggr):
 
 def build_new_ts(new_ts):
     for round_tstamp in range(start_round_epoch, end_round_epoch, zeusping_helpers.ROUND_SECS):
-        ts_fname = "/scratch/zeusping/data/processed_op_CA_ME_testbintest3/{0}_to_{1}/ts_rda_test".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
+        ts_fname = "/scratch/zeusping/data/processed_op_CA_ME_testbintest3/{0}_to_{1}/ts_rda_test.gz".format(round_tstamp, round_tstamp + zeusping_helpers.ROUND_SECS)
 
-        fp = open(ts_fname)
+        fp = wandio.open(ts_fname)
 
         for line in fp:
             parts = line.strip().split('|')
