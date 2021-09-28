@@ -63,11 +63,11 @@ def populate_s24_to_round_status_sr(fname, s24_to_resps):
 
         parts = line.strip().split('|')
 
-        s24 = parts[0].strip()
+        s24 = int(parts[0].strip() )
 
         r_addrs = int(parts[2])
         s24_to_dets = defaultdict(set)
-        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets)
+        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets, is_s24_str=False)
 
         s24_to_resps[s24].append(len(s24_to_dets['r']) )
 
@@ -77,7 +77,7 @@ inp_path = sys.argv[2]
 tstart = int(sys.argv[3])
 tend = int(sys.argv[4])
 
-IS_INPUT_COMPRESSED = 1 # Input is compressed for CA_ME
+IS_INPUT_COMPRESSED = 1
 
 # op_fname = sys.argv[4]
 op_dir = "./data/" # TODO: Change this location at some point
@@ -102,6 +102,8 @@ for s24 in s24_to_resps:
     med = statistics.median(s24_to_resps[s24])
 
     # op_fp.write("{0}|{1}\n".format(s24, math.floor(med) ) )
+    # s24_ipstr = socket.inet_ntoa(struct.pack('!L', s24))
+    # op_fp.write("{0}|{1}\n".format(s24_ipstr, med ) )
     op_fp.write("{0}|{1}\n".format(s24, med ) )
 
 op_fp.close()

@@ -149,10 +149,13 @@ def populate_s24_to_resps_given_s24file(resp_s24s_fname):
     for line in resp_s24s_fp:
         parts = line.strip().split('|')
 
-        s24_str = parts[0]
-        s24_dot0_ipstr = s24_str[:-3]
-        s24_ipid = struct.unpack("!I", socket.inet_aton(s24_dot0_ipstr))[0]
-        s24 = s24_ipid & s24_mask
+        # s24_str = parts[0]
+        # s24_dot0_ipstr = s24_str[:-3]
+        # s24_ipid = struct.unpack("!I", socket.inet_aton(s24_str))[0]
+        # s24 = s24_ipid & s24_mask
+
+        # Ths 24 in typicalrespspers24 is now stored in integer format, so we can use it directly
+        s24 = parts[0]
         
         resp = int(float(parts[1]))
         s24_to_resps[s24] = resp
@@ -309,14 +312,14 @@ elif mode == "mr-multiround":
         s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
         
         s24_to_rda_dets = defaultdict(nested_dict_factory_set)
-        # TODO: Change specific_round_fname to be compatible with compression
-        this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
+        this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr_test.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
         populate_s24_to_round_status_mr(this_t_fname, reqd_s24_set, s24_to_rda_dets)
 
         sys.stderr.write("{0} processed, {1} s24s obtained\n".format(this_t, len(s24_to_rda_dets) ) )
         for s24 in s24_to_rda_dets:
             if len(s24_to_rda_dets[s24]['d']) >= 5 and len(s24_to_rda_dets[s24]['r']) < 5:
-                op_fp.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]), s24_to_resps[s24] ) )
+                s24_ipstr = socket.inet_ntoa(struct.pack('!L', s24))
+                op_fp.write("{0} {1} {2}/24 {3} {4} {5} {6} {7}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), s24_ipstr, len(s24_to_dets[s24]["pinged"]), len(s24_to_rda_dets[s24]["d"]), len(s24_to_rda_dets[s24]["r"]), len(s24_to_rda_dets[s24]["a"]), s24_to_resps[s24] ) )
 
         op_fp.flush()
 
