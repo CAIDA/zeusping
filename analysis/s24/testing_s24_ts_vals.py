@@ -53,13 +53,12 @@ import zeusping_helpers
 
 if sys.version_info[0] == 2:
     py_ver = 2
-    import wandio
     import subprocess32
 else:
     py_ver = 3
 
 ip_fname = sys.argv[1]
-ip_fp = open(ip_fname)
+ip_fp = wandio.open(ip_fname)
 
 reqd_s24 = sys.argv[2]
 
@@ -80,15 +79,17 @@ for line in ip_fp:
         continue
 
     s24_to_dets = defaultdict(set)
+
+    # s24 is an int. But reqd_s24 is a string. So is_s24_str is True
     
     d_addrs = int(parts[1])
-    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, d_addrs, 'd', s24_to_dets)
+    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, d_addrs, 'd', s24_to_dets, is_s24_str=True)
     
     r_addrs = int(parts[2])
-    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, r_addrs, 'r', s24_to_dets)
+    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, r_addrs, 'r', s24_to_dets, is_s24_str=True)
     
     a_addrs = int(parts[3])
-    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, a_addrs, 'a', s24_to_dets)    
+    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, a_addrs, 'a', s24_to_dets, is_s24_str=True)    
     # sys.exit(1)
 
 statuses = ['d', 'r', 'a']
