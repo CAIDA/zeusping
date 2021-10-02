@@ -155,7 +155,7 @@ def populate_s24_to_resps_given_s24file(resp_s24s_fname):
         # s24 = s24_ipid & s24_mask
 
         # Ths 24 in typicalrespspers24 is now stored in integer format, so we can use it directly
-        s24 = parts[0]
+        s24 = int(parts[0])
         
         resp = int(float(parts[1]))
         s24_to_resps[s24] = resp
@@ -270,6 +270,7 @@ if mode == "simple-oneround":
 elif mode == "mr-oneround":
     inp_path = sys.argv[5]
     reqd_t = int(sys.argv[6])
+    dur_str = sys.argv[7]
 
     this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
     resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.
@@ -283,8 +284,11 @@ elif mode == "mr-oneround":
     reqd_t_dt = datetime.datetime.utcfromtimestamp(reqd_t)
     reqd_t_dt_str = '{0}-{1}-{2}T{3}-{4}'.format(reqd_t_dt.year, reqd_t_dt.strftime("%m"), reqd_t_dt.strftime("%d"), reqd_t_dt.strftime("%H"), reqd_t_dt.strftime("%M") )
     
-    op_fname = './data/for_crispr_usenix21/for_alex/s24s_multiroundfate_{0}-{1}_{2}_{3}'.format(aggr, asn, reqd_t, reqd_t_dt_str)
+    # op_fname = './data/for_crispr_usenix21/for_alex/s24s_multiroundfate_{0}-{1}_{2}_{3}'.format(aggr, asn, reqd_t, reqd_t_dt_str)
+    op_fname = './data/pre_crispr_usenix21/s24s_multiroundfate_{0}-{1}_{2}_{3}'.format(aggr, asn, reqd_t, reqd_t_dt_str)
     op_fp = open(op_fname, 'w')
+
+    op_fp.write("{0}\n".format(dur_str) )
     
     for s24 in s24_to_dets:
         s24_ipstr = socket.inet_ntoa(struct.pack('!L', s24))
