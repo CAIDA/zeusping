@@ -80,13 +80,13 @@ tend = int(sys.argv[4])
 IS_INPUT_COMPRESSED = 1
 
 # op_fname = sys.argv[4]
-op_dir = "./data/" # TODO: Change this location at some point
+op_dir = "./data/typicalrespspers24/"
 op_fname = "{0}/typicalrespspers24-{1}-{2}to{3}".format(op_dir, campaign, tstart, tend)
 
 s24_to_resps = defaultdict(list)
 for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
     if IS_INPUT_COMPRESSED == 1:
-        this_t_fname = "{0}/{1}_to_{2}/ts_s24_sr_test.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
+        this_t_fname = "{0}/{1}_to_{2}/ts_s24_sr.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
     else:
         this_t_fname = "{0}/{1}_to_{2}/ts_s24_sr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
     sys.stderr.write("Processing {0} at {1}\n".format(this_t_fname, str(datetime.datetime.now() ) ) )
