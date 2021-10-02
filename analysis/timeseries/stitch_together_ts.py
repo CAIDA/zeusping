@@ -184,11 +184,10 @@ for this_t in range(tstart, tend, 600):
         if is_rda == 0:
             ts_fname = "{0}/{1}/ts.gz".format(op_dir, round_id)
         else:
-            # TODO: Remove the "test" once we have this finalized
             if is_mr == 1:
-                ts_fname = "{0}/{1}/ts_rda_mr_test".format(op_dir, round_id)
+                ts_fname = "{0}/{1}/ts_rda_mr.gz".format(op_dir, round_id)
             else:
-                ts_fname = "{0}/{1}/ts_rda_test".format(op_dir, round_id)
+                ts_fname = "{0}/{1}/ts_rda.gz".format(op_dir, round_id)
             
     sys.stderr.write("{0}\n".format(ts_fname) )
     # sys.exit(1)

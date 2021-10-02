@@ -119,17 +119,30 @@ def build_tstamp_to_vals(inp_dir, tstamp_to_vals):
                     tstamp_to_vals[ts][key] = 0
 
             else:
-                n_d = int(parts[2])
-                r_key = "{0}.dropout_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][r_key] = n_d
+                if is_mr == 1:
+                    n_d = int(parts[2])
+                    r_key = "{0}.mr_dropout_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][r_key] = n_d
 
-                n_r = int(parts[3])
-                r_key = "{0}.responsive_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][r_key] = n_r
+                    n_r = int(parts[3])
+                    r_key = "{0}.mr_responsive_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][r_key] = n_r
 
-                n_a = int(parts[4])
-                r_key = "{0}.antidropout_addr_cnt".format(fqdn)
-                tstamp_to_vals[ts][r_key] = n_a
+                    n_a = int(parts[4])
+                    r_key = "{0}.mr_antidropout_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][r_key] = n_a
+                else:
+                    n_d = int(parts[2])
+                    r_key = "{0}.sr_dropout_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][r_key] = n_d
+
+                    n_r = int(parts[3])
+                    r_key = "{0}.sr_responsive_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][r_key] = n_r
+
+                    n_a = int(parts[4])
+                    r_key = "{0}.sr_antidropout_addr_cnt".format(fqdn)
+                    tstamp_to_vals[ts][r_key] = n_a
             
         # sys.exit(1)
 
@@ -140,6 +153,9 @@ inp_dir = sys.argv[1]
 # If we are processing the US, let us not write timeseries files for ASes. We do not want to do this because various ZeusPing campaigns would have pinged addresses in the same AS (7922 is pinged in LA_MS_AL_AR_FL_CT and also in CA_ME). If we insert TS values for each AS from these campaigns, they will get clobbered.
 is_US = int(sys.argv[2])
 is_rda = int(sys.argv[3])
+
+if is_rda == 1:
+    is_mr = int(sys.argv[4])
 
 ts = _pytimeseries.Timeseries()
 
