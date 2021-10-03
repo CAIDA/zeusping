@@ -260,7 +260,7 @@ if mode == "simple-oneround":
     reqd_t = int(sys.argv[6])
     
     this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
-    resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.    
+    resp_s24s_fname = './data/typicalrespspers24/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime)
     s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
     
     populate_s24_to_round_status(specific_round_fname, pinged_addrs)
@@ -273,11 +273,11 @@ elif mode == "mr-oneround":
     dur_str = sys.argv[7]
 
     this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, reqd_t)
-    resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.
+    resp_s24s_fname = './data/typicalrespspers24/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime)
     sys.stderr.write("resp_s24s_fname: {0}\n".format(resp_s24s_fname) )
     s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
 
-    specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr_test.gz'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
+    specific_round_fname = '{0}/{1}_to_{2}/ts_s24_mr.gz'.format(inp_path, reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
     reqd_s24_set = find_reqd_s24_set(pinged_addrs)
     populate_s24_to_round_status_mr(specific_round_fname, reqd_s24_set, s24_to_dets)
 
@@ -310,13 +310,13 @@ elif mode == "mr-multiround":
     for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
 
         this_week_begintime, this_week_endtime = find_this_week_begin_and_endtime(list_of_week_begintimes, this_t)
-        resp_s24s_fname = './data/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime) # TODO: Change the directory.
+        resp_s24s_fname = './data/typicalrespspers24/typicalrespspers24-{0}-{1}to{2}'.format(campaign, this_week_begintime, this_week_endtime)
         # sys.stderr.write("{0}\n".format(resp_s24s_fname))
         # sys.exit(1)
         s24_to_resps = populate_s24_to_resps_given_s24file(resp_s24s_fname)
         
         s24_to_rda_dets = defaultdict(nested_dict_factory_set)
-        this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr_test.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
+        this_t_fname = "{0}/{1}_to_{2}/ts_s24_mr.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
         populate_s24_to_round_status_mr(this_t_fname, reqd_s24_set, s24_to_rda_dets)
 
         sys.stderr.write("{0} processed, {1} s24s obtained\n".format(this_t, len(s24_to_rda_dets) ) )
