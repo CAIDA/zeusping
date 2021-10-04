@@ -115,7 +115,7 @@ def find_dets_and_write_if_reqd(pot_file):
     det_op_fp.write("{0}\t{1}\ts24s_with_gt5d:{2}\ts24s_with_gt5d_0r:{3}\ts24s_with_gt5d_lt5r:{4}\ts24s_with_gt5d_gte5r:{5}\n".format(dur_str, pot_n_d_str, s24s_with_gt5d, s24s_with_gt5d_0r, s24s_with_gt5d_lt5r, s24s_with_gt5d_gte5r) )
     
     for_crispr_op_fp = open("{0}/{1}".format(for_crispr_dir, pot_file_fname), "w")
-    for_crispr_op_fp.write("{0}\n".format(dur_str) )
+    for_crispr_op_fp.write("{0}\ts24s-with-greater-than-5-dropouts:{1}\ts24s-with-greater-than-5-dropouts-and-0-responsive-addresses:{2}\ts24s-with-greater-than-5-dropouts-and-greater-than-5-responses:{3}\n".format(dur_str, s24s_with_gt5d, s24s_with_gt5d_0r, s24s_with_gt5d_gte5r) )
     
     inp_fp = open(pot_file)
 
