@@ -182,11 +182,16 @@ def find_duration(round_to_dets, pot_time, pot_n_d):
     curr_t = pot_time + zeusping_helpers.ROUND_SECS
     
     while True:
+
+        if curr_t not in round_to_dets:
+            dur = -1
+            return dur
+        
         n_d = round_to_dets[curr_t]["n_d"]
         n_a = round_to_dets[curr_t]["n_a"]
 
-        if pot_time == 1611093600:
-            sys.stderr.write("1611093600 {0} {1} {2}\n".format(pot_n_d, n_d, n_a) )
+        # if pot_time == 1611093600:
+        #     sys.stderr.write("1611093600 {0} {1} {2}\n".format(pot_n_d, n_d, n_a) )
 
         # Anti-dropouts seem to so rarely occur in a correlated manner, so I am being lenient with matching. 
         if ( (n_a >= pot_n_d * 0.75) and (n_a <= pot_n_d * 1.2) ):
@@ -343,7 +348,9 @@ def main():
     # If n_r << med_n_r in some round, it's Ok, our min_outs_reqd then is an overestimate. I take care of n_r >> med_n_r in populate_corrfails
     sys.stderr.write("Min outs reqd for {0} responses with p_d {1}: {2}\n".format(med_n_r, p_d, min_outs_reqd) )
 
+    # If we just want to see P(D), min_outs_reqd etc., exit here.
     # sys.exit(1)
+    
     min_outs_reqd = min_outs_reqd * 2 # NOTE: Temporary hack, to focus on larger outages. 
     populate_mr_round_to_dets(rda_mr_per_aggr_fname, round_to_dets, all_ts)
 
