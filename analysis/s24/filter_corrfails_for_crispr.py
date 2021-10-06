@@ -104,6 +104,7 @@ def find_dets_and_write_if_reqd(pot_file):
     inp_fp.close()
     
     if s24s_with_gt5d < MIN_S24_THRESH:
+        sys.stderr.write("{0} had only {1} s24s with gte 5 dropouts\n".format(pot_file, s24s_with_gt5d))
         return
 
     pot_file_parts = pot_file.strip().split('/')
@@ -148,6 +149,9 @@ def process_pot_files(pot_files_dir, done_f, done_files_fname):
             continue
 
         if "det_data" in pot_file:
+            continue
+
+        if "binomially_done_state_ases" in pot_file:
             continue
         
         find_dets_and_write_if_reqd(pot_file)
