@@ -333,7 +333,7 @@ def main():
 
     aggr_to_rd = defaultdict(int)
     # We will calculate P(D) using an arbitrary date range and we can apply Binomial test on a *different* date range than the one being examined. 
-    prep_calc_pd(rda_sr_per_aggr_fname, aggr_to_rd, pd_calc_tstart, pd_calc_tend)
+    prep_calc_pd(pd_fname, aggr_to_rd, pd_calc_tstart, pd_calc_tend)
     p_d = obtain_pd(aggr_to_rd)
     # sys.exit(1)
 
