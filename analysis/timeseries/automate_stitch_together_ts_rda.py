@@ -32,97 +32,60 @@
 #  MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 import sys
-import os
-import datetime
+import glob
+import shlex
 import subprocess
 import os
-import wandio
+import datetime
+import json
+from collections import defaultdict
+import array
+import io
 import struct
 import socket
-import ctypes
-import shlex
-import gmpy
-import gc
-from collections import defaultdict
-import radix
-import pyipmeta
+import wandio
+import math
+import pprint
 
 zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
 sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
-if sys.version_info[0] == 2:
-    py_ver = 2
-    import wandio
-    import subprocess32
-else:
-    py_ver = 3
-
-
-def find_reqd_ips(reqd_ips_fname):
-
-    reqd_ips = set()
-    
-    fp = open(reqd_ips_fname)
-    for line in fp:
-
-        parts = line.strip().split('|')
-        addr = parts[0].strip()
-
-        reqd_ips.add(addr)
-
-    fp.close()
-    return reqd_ips
-
-
-def get_fp(reqd_t):
-    this_t_dt = datetime.datetime.utcfromtimestamp(reqd_t)
-    round_id = "{0}_to_{1}".format(reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
-    reqd_t_file = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/round={5}/rda_multiround.gz'.format(campaign, this_t_dt.year, this_t_dt.strftime("%m"), this_t_dt.strftime("%d"), this_t_dt.strftime("%H"), round_id)
-    wandiocat_cmd = 'wandiocat swift://zeusping-processed/{0}'.format(reqd_t_file)
-
-    args = shlex.split(wandiocat_cmd)
-
-    if py_ver == 2:
-        try:
-            proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
-        except:
-            sys.stderr.write("wandiocat failed for {0};\n".format(wandiocat_cmd) )
-            return
-    else:
-        try:
-            proc = subprocess.Popen(wandiocat_cmd, stdout=subprocess.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
-        except:
-            sys.stderr.write("wandiocat failed for {0};\n".format(wandiocat_cmd) )
-            return
-
-    return proc.stdout
-
 
 campaign = sys.argv[1]
-reqd_t = int(sys.argv[2])
+rda_path = sys.argv[2]
+is_swift = 0
+is_rda = 1
 
-ip_fp = get_fp(reqd_t)
+week_tstamps = [
+    [1615075200, 1617494400], # Mar
+    [1617494400, 1619913600], # Apr
+    [1619913600, 1622937600], # May
+    [1622937600, 1625356800], # Jun
+]
 
-reqd_ips_fname = sys.argv[3]
-reqd_ips = find_reqd_ips(reqd_ips_fname)
+rda_statuses = [0, 1] # 0 is for sr, 1 is for mr
 
-for line in ip_fp:
+# Increase the ulimit
+ulimit_cmd = "ulimit -S -n 100000"
+sys.stderr.write("{0}\n".format(ulimit_cmd) )
+os.system(ulimit_cmd)
 
-    parts = line.decode().strip().split()
+for rda_status in rda_statuses: 
+    for week_tstamp_pair in week_tstamps:
+        week_tstamp_start = week_tstamp_pair[0]
+        week_tstamp_end = week_tstamp_pair[1]
 
-    addr = parts[0].strip()
+        sys.stderr.write("Beginning run for {0} {1} {2} at {3}\n".format(rda_status, week_tstamp_start, week_tstamp_end, str(datetime.datetime.now() ) ) )
+        cmd = """python stitch_together_ts.py {0} {1} {2} {3} {4} {5} {6}""".format(week_tstamp_start, week_tstamp_end, campaign, rda_path, is_swift, is_rda, rda_status)
+        sys.stderr.write("{0}\n".format(cmd) )
+        args = shlex.split(cmd)
+        # os.system(cmd)
 
-    # print(addr)
-
-    if addr not in reqd_ips:
-        continue
-
-    status = int(parts[1])
-
-    if status == 0:
-        sys.stdout.write("{0}|0\n".format(addr) )
-    elif status == 1:
-        sys.stdout.write("{0}|1\n".format(addr) )
-    
+        try:
+            subprocess.check_call(args)
+        except subprocess.CalledProcessError:
+            sys.stderr.write("cmd failed for {0} {1} {2}; exiting\n".format(rda_status, week_tstamp_start, week_tstamp_end) )
+            # continue
+            sys.exit(1)
 
