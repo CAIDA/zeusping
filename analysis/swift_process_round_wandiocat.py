@@ -115,31 +115,50 @@ def find_potential_files():
     # NOTE: Perhaps replace swift_list_cmd with wandio.swift.list? I don't think it'll buy us that much additional efficiency though...
     # elems = wandio.swift.list('zeusping-warts', )
 
-    # NOTE: If we are processing the previous round as well, may need to modify the swift_list_cmd to ensure that previous round's files will also be included. If this round is 00:00 but previous round is from the previous day at 23:50, we'll need to modify the swift list command. We'll probably just have to call the swift_list_cmd twice (once for round_tstart_dt.stuff and another for prev_round_tstart_dt.stuff, where prev_round = round - 600)
-    swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
-    # print swift_list_cmd
-    args = shlex.split(swift_list_cmd)
-    if py_ver == 2:
-        try:
-            potential_files = subprocess32.check_output(args)
-        except subprocess32.CalledProcessError:
-            sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
-            sys.exit(1)
-    else:
-        try:
-            potential_files = subprocess.check_output(args)
-        except subprocess.CalledProcessError:
-            sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
-            sys.exit(1)
-            
+    if swift_mode == 'swift': 
 
+        # NOTE: If we are processing the previous round as well, may need to modify the swift_list_cmd to ensure that previous round's files will also be included. If this round is 00:00 but previous round is from the previous day at 23:50, we'll need to modify the swift list command. We'll probably just have to call the swift_list_cmd twice (once for round_tstart_dt.stuff and another for prev_round_tstart_dt.stuff, where prev_round = round - 600)
+        swift_list_cmd = 'swift list zeusping-warts -p datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/'.format(campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
+        # print swift_list_cmd
+        args = shlex.split(swift_list_cmd)
+        if py_ver == 2:
+            try:
+                potential_files = subprocess32.check_output(args)
+            except subprocess32.CalledProcessError:
+                sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
+                sys.exit(1)
+        else:
+            try:
+                potential_files = subprocess.check_output(args)
+            except subprocess.CalledProcessError:
+                sys.stderr.write("Swift list failed for {0}; exiting\n".format(swift_list_cmd) )
+                sys.exit(1)
+
+    else:
+
+        inp_path = swift_mode
+        pathh = '{0}/campaign={1}/year={2}/month={3}/day={4}/hour={5}/'.format(inp_path, campaign, round_tstart_dt.year, round_tstart_dt.strftime("%m"), round_tstart_dt.strftime("%d"), round_tstart_dt.strftime("%H"))
+
+        potential_filenames = os.listdir(pathh)
+
+        potential_files = []
+        for fil in potential_filenames:
+            abs_path = "{0}{1}".format(pathh, fil)
+            potential_files.append(abs_path)
+
+        potential_files.sort() # This is not strictly necessary. Only doing it for testing purposes.
+            
     return potential_files
 
 @profile        
 def update_addr_to_resps(fname, addr_to_resps, vpnum, vp, vp_to_resps_fp):
 
-    wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
+    if swift_mode == 'swift':
+        wandiocat_cmd = './swift_wrapper.sh swift://zeusping-warts/{0}'.format(fname)
+    else:
+        wandiocat_cmd = './swift_wrapper.sh {0}'.format(fname)
     sys.stderr.write("{0}\n".format(wandiocat_cmd) )
+    
     args = shlex.split(wandiocat_cmd)
 
     if py_ver == 2:
@@ -162,7 +181,6 @@ def update_addr_to_resps(fname, addr_to_resps, vpnum, vp, vp_to_resps_fp):
         except:
             sys.stderr.write("wandiocat failed for {0}; exiting\n".format(wandiocat_cmd) )
             sys.exit(1)
-        
         
     # try:
     #     ping_lines = subprocess32.check_output(args)
@@ -341,9 +359,10 @@ def write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, rou
     op_fname = '{0}/{1}_to_{2}/resps_per_round'.format(processed_op_dir, round_tstart, round_tend)
     ping_aggrs_fp = open(op_fname, 'wb')
 
-    # TODO: Check if we can initialize these dicts using defaultdicts somehow
-    loc1_asn_to_status = {}
-    loc2_asn_to_status = {}
+    if mode == 'annotate':
+        # TODO: Check if we can initialize these dicts using defaultdicts somehow
+        loc1_asn_to_status = {}
+        loc2_asn_to_status = {}
 
     # Write to ping_aggrs_fp. Also calculate timeseries vals for various IODA aggregates.
     for dst in sorted(addr_to_resps):
@@ -352,171 +371,175 @@ def write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, rou
         # Go from ipid to ipstr
         dstipstr = zeusping_helpers.ipint_to_ipstr(dst)
 
-        asn = 'UNK'
-        # Find ip_to_as, ip_to_loc
-        rnode = rtree.search_best(dstipstr)
-        if rnode is None:
+        if mode == 'annotate':
             asn = 'UNK'
-        else:
-            asn = rnode.data["origin"]
-
-        # Let loc1 refer to the first-level location and loc2 refer to the second-level location
-        # In the US, loc1 is state and loc2 is county
-        # In non-US countries, loc1 will be country and loc2 will be region
-        # At this point, we will obtain just the ids of loc1 and loc2. We will use other dictionaries to obtain the name and fqdn
-        loc1 = 'UNKLOC1'
-        loc2 = 'UNKLOC2'
-        res = ipm.lookup(dstipstr)
-
-        if len(res) != 0:
-            ctry_code = res[0]['country_code']
-
-            if is_US is True:
-                # Find US state and county
-                if ctry_code != 'US':
-                    continue
-
-                loc1 = str(res[0]['polygon_ids'][1]) # This is for US state info
-                loc2 = str(res[0]['polygon_ids'][0]) # This is for county info
-
+            # Find ip_to_as, ip_to_loc
+            rnode = rtree.search_best(dstipstr)
+            if rnode is None:
+                asn = 'UNK'
             else:
-                # Find region
-                loc1 = ctry_code
-                loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
+                asn = rnode.data["origin"]
 
-        this_arr = addr_to_resps[dst]
-        # If this address received at least two pings, it was pinged
-        if gmpy.popcount(this_arr[0]) >= 2:
+            # Let loc1 refer to the first-level location and loc2 refer to the second-level location
+            # In the US, loc1 is state and loc2 is county
+            # In non-US countries, loc1 will be country and loc2 will be region
+            # At this point, we will obtain just the ids of loc1 and loc2. We will use other dictionaries to obtain the name and fqdn
+            loc1 = 'UNKLOC1'
+            loc2 = 'UNKLOC2'
+            res = ipm.lookup(dstipstr)
 
-            if loc1 not in loc1_asn_to_status:
-                loc1_asn_to_status[loc1] = {}
+            if len(res) != 0:
+                ctry_code = res[0]['country_code']
 
-            if asn not in loc1_asn_to_status[loc1]:
-                loc1_asn_to_status[loc1][asn] = defaultdict(int)
+                if is_US is True:
+                    # Find US state and county
+                    if ctry_code != 'US':
+                        continue
 
-            if loc2 not in loc2_asn_to_status:
-                loc2_asn_to_status[loc2] ={}
+                    loc1 = str(res[0]['polygon_ids'][1]) # This is for US state info
+                    loc2 = str(res[0]['polygon_ids'][0]) # This is for county info
 
-            if asn not in loc2_asn_to_status[loc2]:
-                loc2_asn_to_status[loc2][asn] = defaultdict(int)
+                else:
+                    # Find region
+                    loc1 = ctry_code
+                    loc2 = str(res[0]['polygon_ids'][1]) # This is for region info
 
-            loc1_asn_to_status[loc1][asn]["pinged"] += 1
-            loc2_asn_to_status[loc2][asn]["pinged"] += 1
+            this_arr = addr_to_resps[dst]
+            # If this address received at least two pings, it was pinged
+            if gmpy.popcount(this_arr[0]) >= 2:
 
-        # If this address responded to at least one ping, it was responsive
-        if this_arr[1] >= 1:
+                if loc1 not in loc1_asn_to_status:
+                    loc1_asn_to_status[loc1] = {}
 
-            if loc1 not in loc1_asn_to_status:
-                loc1_asn_to_status[loc1] = {}
+                if asn not in loc1_asn_to_status[loc1]:
+                    loc1_asn_to_status[loc1][asn] = defaultdict(int)
 
-            if asn not in loc1_asn_to_status[loc1]:
-                loc1_asn_to_status[loc1][asn] = defaultdict(int)
+                if loc2 not in loc2_asn_to_status:
+                    loc2_asn_to_status[loc2] ={}
 
-            if loc2 not in loc2_asn_to_status:
-                loc2_asn_to_status[loc2] ={}
+                if asn not in loc2_asn_to_status[loc2]:
+                    loc2_asn_to_status[loc2][asn] = defaultdict(int)
 
-            if asn not in loc2_asn_to_status[loc2]:
-                loc2_asn_to_status[loc2][asn] = defaultdict(int)
+                loc1_asn_to_status[loc1][asn]["pinged"] += 1
+                loc2_asn_to_status[loc2][asn]["pinged"] += 1
 
-            loc1_asn_to_status[loc1][asn]["resp"] += 1
-            loc2_asn_to_status[loc2][asn]["resp"] += 1
+            # If this address responded to at least one ping, it was responsive
+            if this_arr[1] >= 1:
+
+                if loc1 not in loc1_asn_to_status:
+                    loc1_asn_to_status[loc1] = {}
+
+                if asn not in loc1_asn_to_status[loc1]:
+                    loc1_asn_to_status[loc1][asn] = defaultdict(int)
+
+                if loc2 not in loc2_asn_to_status:
+                    loc2_asn_to_status[loc2] ={}
+
+                if asn not in loc2_asn_to_status[loc2]:
+                    loc2_asn_to_status[loc2][asn] = defaultdict(int)
+
+                loc1_asn_to_status[loc1][asn]["resp"] += 1
+                loc2_asn_to_status[loc2][asn]["resp"] += 1
 
     ping_aggrs_fp.close()
 
-    # Write ts file
-    ts_fname = '{0}/{1}_to_{2}/ts'.format(processed_op_dir, round_tstart, round_tend)
-    ts_fp = open(ts_fname, 'w')
+    if mode == 'annotate':
+        # Write ts file
+        ts_fname = '{0}/{1}_to_{2}/ts'.format(processed_op_dir, round_tstart, round_tend)
+        ts_fp = open(ts_fname, 'w')
 
-    loc1_to_status = {}
-    asn_to_status = {}
-    
-    for loc1 in loc1_asn_to_status:
-        for asn in loc1_asn_to_status[loc1]:
+        loc1_to_status = {}
+        asn_to_status = {}
 
+        for loc1 in loc1_asn_to_status:
+            for asn in loc1_asn_to_status[loc1]:
+
+                if is_US is True:
+                    loc1_fqdn = idx_to_loc1_fqdn[loc1]
+                    loc1_name = idx_to_loc1_name[loc1]
+                else:
+                    loc1_fqdn = ctry_code_to_fqdn[loc1]
+                    loc1_name = ctry_code_to_name[loc1]
+
+                ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc1_fqdn, asn)
+                this_d = loc1_asn_to_status[loc1][asn]
+                n_p = this_d["pinged"]
+                n_r = this_d["resp"]
+                custom_name = "{0}-{1}".format(loc1_name, asn)
+                ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+
+                if loc1 not in loc1_to_status:
+                    loc1_to_status[loc1] = {"pinged" : 0, "resp" : 0}
+
+                loc1_to_status[loc1]["pinged"] += n_p
+                loc1_to_status[loc1]["resp"] += n_r
+
+                if asn not in asn_to_status:
+                    asn_to_status[asn] = {"pinged" : 0, "resp" : 0}
+
+                asn_to_status[asn]["pinged"] += n_p
+                asn_to_status[asn]["resp"] += n_r
+
+        for loc1 in loc1_to_status:
             if is_US is True:
                 loc1_fqdn = idx_to_loc1_fqdn[loc1]
                 loc1_name = idx_to_loc1_name[loc1]
             else:
                 loc1_fqdn = ctry_code_to_fqdn[loc1]
                 loc1_name = ctry_code_to_name[loc1]
-                
-            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc1_fqdn, asn)
-            this_d = loc1_asn_to_status[loc1][asn]
+
+            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc1_fqdn)
+            this_d = loc1_to_status[loc1]
             n_p = this_d["pinged"]
             n_r = this_d["resp"]
-            custom_name = "{0}-{1}".format(loc1_name, asn)
+            custom_name = "{0}".format(loc1_name)
             ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
 
-            if loc1 not in loc1_to_status:
-                loc1_to_status[loc1] = {"pinged" : 0, "resp" : 0}
-            
-            loc1_to_status[loc1]["pinged"] += n_p
-            loc1_to_status[loc1]["resp"] += n_r
+        for asn in asn_to_status:
 
-            if asn not in asn_to_status:
-                asn_to_status[asn] = {"pinged" : 0, "resp" : 0}
-
-            asn_to_status[asn]["pinged"] += n_p
-            asn_to_status[asn]["resp"] += n_r
-
-    for loc1 in loc1_to_status:
-        if is_US is True:
-            loc1_fqdn = idx_to_loc1_fqdn[loc1]
-            loc1_name = idx_to_loc1_name[loc1]
-        else:
-            loc1_fqdn = ctry_code_to_fqdn[loc1]
-            loc1_name = ctry_code_to_name[loc1]
-        
-        ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc1_fqdn)
-        this_d = loc1_to_status[loc1]
-        n_p = this_d["pinged"]
-        n_r = this_d["resp"]
-        custom_name = "{0}".format(loc1_name)
-        ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+            ioda_key = 'projects.zeusping.test1.routing.asn.{0}'.format(asn)
+            this_d = asn_to_status[asn]
+            n_p = this_d["pinged"]
+            n_r = this_d["resp"]
+            custom_name = "{0}".format(asn)
+            ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
     
-    for asn in asn_to_status:
-        
-        ioda_key = 'projects.zeusping.test1.routing.asn.{0}'.format(asn)
-        this_d = asn_to_status[asn]
-        n_p = this_d["pinged"]
-        n_r = this_d["resp"]
-        custom_name = "{0}".format(asn)
-        ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+        loc2_to_status = defaultdict(int) # TODO: We initialize loc2_to_status as a defaultdict(int), but use it as a defaultdict(defaultdict(int))! Fix this.
 
-    
-    loc2_to_status = defaultdict(int) # TODO: We initialize loc2_to_status as a defaultdict(int), but use it as a defaultdict(defaultdict(int))! Fix this.
-    
-    for loc2 in loc2_asn_to_status:
-        for asn in loc2_asn_to_status[loc2]:
+        for loc2 in loc2_asn_to_status:
+            for asn in loc2_asn_to_status[loc2]:
 
+                loc2_fqdn = idx_to_loc2_fqdn[loc2]
+                loc2_name = idx_to_loc2_name[loc2]
+
+                ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc2_fqdn, asn)
+                this_d = loc2_asn_to_status[loc2][asn]
+                n_p = this_d["pinged"]
+                n_r = this_d["resp"]
+                custom_name = "{0}-{1}".format(loc2_name, asn)
+                ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
+
+                if loc2 not in loc2_to_status:
+                    loc2_to_status[loc2] = {"pinged" : 0, "resp" : 0}
+
+                loc2_to_status[loc2]["pinged"] += n_p
+                loc2_to_status[loc2]["resp"] += n_r
+
+        for loc2 in loc2_to_status:
             loc2_fqdn = idx_to_loc2_fqdn[loc2]
             loc2_name = idx_to_loc2_name[loc2]
-                
-            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}.asn.{1}'.format(loc2_fqdn, asn)
-            this_d = loc2_asn_to_status[loc2][asn]
+
+            ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc2_fqdn)
+            this_d = loc2_to_status[loc2]
             n_p = this_d["pinged"]
             n_r = this_d["resp"]
-            custom_name = "{0}-{1}".format(loc2_name, asn)
+            custom_name = "{0}".format(loc2_name)
             ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
-            
-            if loc2 not in loc2_to_status:
-                loc2_to_status[loc2] = {"pinged" : 0, "resp" : 0}
 
-            loc2_to_status[loc2]["pinged"] += n_p
-            loc2_to_status[loc2]["resp"] += n_r
-
-    for loc2 in loc2_to_status:
-        loc2_fqdn = idx_to_loc2_fqdn[loc2]
-        loc2_name = idx_to_loc2_name[loc2]
-        
-        ioda_key = 'projects.zeusping.test1.geo.netacuity.{0}'.format(loc2_fqdn)
-        this_d = loc2_to_status[loc2]
-        n_p = this_d["pinged"]
-        n_r = this_d["resp"]
-        custom_name = "{0}".format(loc2_name)
-        ts_fp.write("{0}|{1}|{2}|{3}\n".format(ioda_key, custom_name, n_p, n_r) )
-    
-    return op_fname, ts_fname    
+    if mode == 'annotate':
+        return op_fname, ts_fname
+    else:
+        return op_fname
     
 @profile
 def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_tend, op_log_fp):
@@ -524,27 +547,32 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
 
         if write_bin == 0:
             op_fname = write_resps_per_round_ascii(addr_to_resps, processed_op_dir, round_tstart, round_tend)
-
         else:
-            op_fname, ts_fname = write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, round_tend)
+            if mode == 'annotate':
+                op_fname, ts_fname = write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, round_tend)
+                
+                # Compress the ts file
+                gzip_cmd = 'gzip {0}'.format(ts_fname)
+                # sys.stderr.write("{0}\n".format(gzip_cmd) )
+                args = shlex.split(gzip_cmd)
 
-            # Compress the ts file
-            gzip_cmd = 'gzip {0}'.format(ts_fname)
-            # sys.stderr.write("{0}\n".format(gzip_cmd) )
-            args = shlex.split(gzip_cmd)
+                if py_ver == 2:
+                    try:
+                        subprocess32.check_call(args)
+                    except subprocess32.CalledProcessError:
+                        sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+                        sys.exit(1)
+                else:
+                    try:
+                        subprocess.check_call(args)
+                    except subprocess.CalledProcessError:
+                        sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
+                        sys.exit(1)
 
-            if py_ver == 2:
-                try:
-                    subprocess32.check_call(args)
-                except subprocess32.CalledProcessError:
-                    sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
-                    sys.exit(1)
+                # TODO: Perhaps cp ts.gz to another temporary directory? We will keep the ts.gz files around in /scratch for a long time since they are really small and these are the files that we may like to access frequently?
+
             else:
-                try:
-                    subprocess.check_call(args)
-                except subprocess.CalledProcessError:
-                    sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
-                    sys.exit(1)
+                op_fname = write_resps_per_round_bin(addr_to_resps, processed_op_dir, round_tstart, round_tend)
 
         # Compress the output file
         gzip_cmd = 'gzip {0}'.format(op_fname)
@@ -563,8 +591,6 @@ def write_addr_to_resps(addr_to_resps, processed_op_dir, round_tstart, round_ten
             except subprocess.CalledProcessError:
                 sys.stderr.write("Gzip failed for f {0}; exiting\n".format(f) )
                 sys.exit(1)
-
-        # TODO: Perhaps cp ts.gz to another temporary directory? We will keep the ts.gz files around in /scratch for a long time since they are really small and these are the files that we may like to access frequently?
             
     op_log_fp.write("Done with round {0}_to_{1} at: {2}\n".format(round_tstart, round_tend, str(datetime.datetime.now() ) ) )
 
@@ -590,9 +616,15 @@ def main():
         vp_to_vpnum = {}
 
         if py_ver == 2:
-            fname_list = potential_files.strip().split('\n')
+            if swift_mode == 'swift':
+                fname_list = potential_files.strip().split('\n')
+            else:
+                fname_list = potential_files
         else:
-            fname_list = potential_files.decode().strip().split('\n')
+            if swift_mode == 'swift':
+                fname_list = potential_files.decode().strip().split('\n')
+            else:
+                fname_list = potential_files
 
         for fname in fname_list:
             # print fname
@@ -600,7 +632,6 @@ def main():
             # print parts
             file_ctime = parts[0][-10:]
             # print file_ctime
-
             round_num = int(file_ctime)/600
 
             if int(round_num) == reqd_round_num:
@@ -641,49 +672,53 @@ def main():
 campaign = sys.argv[1] # CO_VT_RI/FL/iran_addrs
 round_tstart = int(sys.argv[2])
 write_bin = int(sys.argv[3])
-pfx2AS_fn = sys.argv[4]
-netacq_date = sys.argv[5]
-scope = sys.argv[6]
-
-idx_to_loc1_name = {}
-idx_to_loc1_fqdn = {}
-idx_to_loc1_code = {}
-
-idx_to_loc2_name = {}
-idx_to_loc2_fqdn = {}
-idx_to_loc2_code = {}
-
-if scope == 'US':
-    is_US = True
-    # loc1 is regions, loc2 is counties
-    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, py_ver=2)
-    counties_fname = '/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(counties_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
-    
-else:
-    is_US = False
-    # loc1 is countries, loc2 is regions
-
-    ctry_code_to_fqdn = {}
-    ctry_code_to_name = {}
-    countries_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(countries_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, ctry_code_to_fqdn=ctry_code_to_fqdn, ctry_code_to_name=ctry_code_to_name, py_ver=2)
-    
-    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
-
-    
-rtree = radix.Radix()
-rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
-
-# Load pyipmeta in order to perform geo lookups per address
-provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
-ipm = pyipmeta.IpMeta(provider="netacq-edge",
-                      provider_config=provider_config_str)
+mode = sys.argv[4]
+swift_mode = sys.argv[5] # swift_mode == 'swift' indicates that the files reside on the Swift cluster. If this argument contains a path instead, it indicates the path on local disk where the files reside.
 
 if write_bin == 1:
     struct_fmt = struct.Struct("I 5H")
+
+if mode == 'annotate':
+
+    pfx2AS_fn = sys.argv[6]
+    netacq_date = sys.argv[7]
+    scope = sys.argv[8]
+
+    idx_to_loc1_name = {}
+    idx_to_loc1_fqdn = {}
+    idx_to_loc1_code = {}
+
+    idx_to_loc2_name = {}
+    idx_to_loc2_fqdn = {}
+    idx_to_loc2_code = {}
+
+    if scope == 'US':
+        is_US = True
+        # loc1 is regions, loc2 is counties
+        regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, py_ver=2)
+        counties_fname = '/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(counties_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
+
+    else:
+        is_US = False
+        # loc1 is countries, loc2 is regions
+
+        ctry_code_to_fqdn = {}
+        ctry_code_to_name = {}
+        countries_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(countries_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, ctry_code_to_fqdn=ctry_code_to_fqdn, ctry_code_to_name=ctry_code_to_name, py_ver=2)
+
+        regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=2)
+
+    rtree = radix.Radix()
+    zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree)
+
+    # Load pyipmeta in order to perform geo lookups per address
+    provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+    ipm = pyipmeta.IpMeta(provider="netacq-edge",
+                          provider_config=provider_config_str)
 
 round_tend = round_tstart + 600
 # NOTE: Change output dir for each test!
