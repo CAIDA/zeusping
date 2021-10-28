@@ -44,9 +44,8 @@ import array
 import io
 import struct
 import socket
-import radix
 import gmpy
-import pyipmeta
+
 
 zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
 sys.path.append(zeusping_utils_path + "/utils")
@@ -674,15 +673,22 @@ round_tstart = int(sys.argv[2])
 write_bin = int(sys.argv[3])
 mode = sys.argv[4]
 swift_mode = sys.argv[5] # swift_mode == 'swift' indicates that the files reside on the Swift cluster. If this argument contains a path instead, it indicates the path on local disk where the files reside.
+processed_op_dir = sys.argv[6]
+# NOTE: Change output dir for each test!
+# processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbin'.format(campaign)
+
 
 if write_bin == 1:
     struct_fmt = struct.Struct("I 5H")
 
 if mode == 'annotate':
 
-    pfx2AS_fn = sys.argv[6]
-    netacq_date = sys.argv[7]
-    scope = sys.argv[8]
+    import radix
+    import pyipmeta
+    
+    pfx2AS_fn = sys.argv[7]
+    netacq_date = sys.argv[8]
+    scope = sys.argv[9]
 
     idx_to_loc1_name = {}
     idx_to_loc1_fqdn = {}
@@ -721,7 +727,5 @@ if mode == 'annotate':
                           provider_config=provider_config_str)
 
 round_tend = round_tstart + 600
-# NOTE: Change output dir for each test!
-processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbin'.format(campaign)
 
 main()
