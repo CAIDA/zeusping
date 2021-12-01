@@ -126,7 +126,10 @@ def read_ts_file(this_t, ts_fname, is_swift):
                 tstamp_to_vals[this_t][fqdn]['n_a'] = n_a
 
                 if fqdn not in op_fps:
-                    op_fps[fqdn] = open("{0}/rda_per_round_{1}to{2}/rda_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
+                    if is_mr == 1:
+                        op_fps[fqdn] = open("{0}/mr_rda_per_round_{1}to{2}/rda_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
+                    else:
+                        op_fps[fqdn] = open("{0}/sr_rda_per_round_{1}to{2}/rda_per_round_{3}".format(op_dir, tstart, tend, fqdn), 'w')
 
                 op_fps[fqdn].write("{0}|{1}|{2}|{3}|{4}\n".format(this_t, str(datetime.datetime.utcfromtimestamp(this_t)), n_d, n_r, n_a) )
 
@@ -137,6 +140,7 @@ campaign = sys.argv[3]
 op_dir = sys.argv[4]
 is_swift = int(sys.argv[5])
 is_rda = int(sys.argv[6])
+is_mr = int(sys.argv[7])
 
 # offset = len("projects.zeusping.test1.geo.netacuity.")
 offset = len("projects.zeusping.test1.")
@@ -144,7 +148,10 @@ offset = len("projects.zeusping.test1.")
 if is_rda == 0:
     mkdir_cmd = 'mkdir -p {0}/pinged_resp_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
 else:
-    mkdir_cmd = 'mkdir -p {0}/rda_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
+    if is_mr == 1:
+        mkdir_cmd = 'mkdir -p {0}/mr_rda_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
+    else:
+        mkdir_cmd = 'mkdir -p {0}/sr_rda_per_round_{1}to{2}/'.format(op_dir, tstart, tend)
     
 args = shlex.split(mkdir_cmd)
 if py_ver == 2:
@@ -177,9 +184,11 @@ for this_t in range(tstart, tend, 600):
         if is_rda == 0:
             ts_fname = "{0}/{1}/ts.gz".format(op_dir, round_id)
         else:
-            # TODO: Remove the "test" once we have this finalized
-            ts_fname = "{0}/{1}/ts_rda_test".format(op_dir, round_id)
-
+            if is_mr == 1:
+                ts_fname = "{0}/{1}/ts_rda_mr.gz".format(op_dir, round_id)
+            else:
+                ts_fname = "{0}/{1}/ts_rda.gz".format(op_dir, round_id)
+            
     sys.stderr.write("{0}\n".format(ts_fname) )
     # sys.exit(1)
 

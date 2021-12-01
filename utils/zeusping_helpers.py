@@ -154,17 +154,21 @@ def build_setofstrs_from_file(fname):
     return s
 
 
-# TODO: This function will change once we implement a better per-s24 file representation
-def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets):
+def find_addrs_in_s24_with_status(s24, val, status, s24_to_dets, is_s24_str=True):
 
-    s24_pref = s24[:-4]
-    
+    if is_s24_str:
+        s24_pref = s24[:-4]
+
     curr_oct4 = 0
     for bit_pos in range(256):
 
         if( ( (val >> bit_pos) & 1) == 1):
-            addr = "{0}{1}".format(s24_pref, curr_oct4)
-            s24_to_dets[status].add(addr)
+
+            if is_s24_str:
+                addr = "{0}{1}".format(s24_pref, curr_oct4)
+                s24_to_dets[status].add(addr)
+            else:
+                s24_to_dets[status].add(curr_oct4)
 
         curr_oct4 += 1
 

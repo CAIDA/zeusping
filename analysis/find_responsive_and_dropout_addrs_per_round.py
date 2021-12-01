@@ -35,7 +35,7 @@
 # This script uses processed ping responses from round t-1 and round t to calculate the number of dropouts, responsive, and antidropout addresses per round
 # Conceptually, at the beginning of a round t, there are N (say 1000) addresses that responded in round t-1 and can potentially dropout this round. Let's suppose there are D dropouts (say 100), then 900 of them continued to respond in this round as well (NOTE: the way erosprober works, if an address hasn't dropped out, then it *must* be responsive since all addresses are pinged each round). However, it is possible that some addresses dropped out due to reassignment so M *other* addresses (say 50) lit up. Then the total number of outages is D - M.
 
-# We took up about 10G of memory. We previously required only 1G of memory.
+# We took up about 10G of memory (now seem to be taking up ~6.5G of memory). We previously required only 1G of memory.
 
 import sys
 import os
@@ -53,13 +53,12 @@ from collections import defaultdict
 import radix
 import pyipmeta
     
-# zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
-# sys.path.append(zeusping_utils_path + "/utils")
+zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
+sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
 if sys.version_info[0] == 2:
     py_ver = 2
-    import wandio
     import subprocess32
     from sc_warts import WartsReader
 else:
@@ -80,6 +79,15 @@ except AttributeError:
     # No line profiler, provide a pass-through version
     def profile(func): return func
     builtins.profile = profile
+
+    
+# Define nested_dicts for loc_asn_to_status files (required for generating timeseries)
+def nested_dict_factory_int(): 
+  return defaultdict(int)
+
+
+def nested_dict_factory(): 
+  return defaultdict(nested_dict_factory_int)
 
     
 @profile
@@ -439,7 +447,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
 
     to_write_addr_set = this_roun_addr_to_status.keys() | resp_addrs[-1]
 
-    ip_to_asn = {}
+    # ip_to_asn = {}
     ip_to_loc = {}
     # ipint_to_ipstr = {}
 
@@ -461,7 +469,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
             asn = 'UNK'
         else:
             asn = rnode.data["origin"]
-        ip_to_asn[ipstr] = asn
+        # ip_to_asn[ipstr] = asn
 
         # Let loc1 refer to the first-level location and loc2 refer to the second-level location
         # In the US, loc1 is state and loc2 is county
@@ -500,7 +508,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 if MUST_WRITE_RDA == 1:
                     rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
-                mask = bitset_cache[int(oct4)]
+                mask = bitset_cache[oct4]
                 s24_to_sr_status[s24]['r'] |= (mask)
                 
                 loc1_asn_to_status[loc1][asn]["d"] += 1
@@ -513,7 +521,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 # if addr_to_status is not 0, it *has* to be 2
                 loc1_asn_to_status[loc1][asn]["a"] += 1
                 loc2_asn_to_status[loc2][asn]["a"] += 1
-                mask = bitset_cache[int(oct4)]
+                mask = bitset_cache[oct4]
                 s24_to_sr_status[s24]['a'] |= (mask)
                 if MUST_WRITE_RDA == 1:
                     rda_op_fp.write("{0} 2\n".format(ipstr) ) # The address experienced an anti-dropout this round
@@ -521,7 +529,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
         else:
             loc1_asn_to_status[loc1][asn]["r"] += 1
             loc2_asn_to_status[loc2][asn]["r"] += 1
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_sr_status[s24]['r'] |= (mask)
             if MUST_WRITE_RDA == 1:
                 rda_op_fp.write("{0} 1\n".format(ipstr) ) # The address was responsive at the beginning of the round
@@ -529,20 +537,22 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
     if MUST_WRITE_RDA == 1:                
         rda_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
-    if IS_TEST == 1:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-    else:
-        ts_fname = '{0}/{1}_to_{2}/ts_rda'.format(processed_op_dir, this_t_func, this_t_round_end)
-    ts_fp = open(ts_fname, 'w')
+    if IS_COMPRESSED == 1:
+        if IS_TEST == 1:
+            ts_fname = '{0}/{1}_to_{2}/ts_rda_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        else:
+            ts_fname = '{0}/{1}_to_{2}/ts_rda.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+    ts_fp = wandio.open(ts_fname, 'w')
     write_ts_file(ts_fp, loc1_asn_to_status, True)
     write_ts_file(ts_fp, loc2_asn_to_status, False)
     ts_fp.close()
 
-    if IS_TEST == 1:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-    else:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_sr'.format(processed_op_dir, this_t_func, this_t_round_end)
-    s24_fp = open(s24_fname, 'w')
+    if IS_COMPRESSED == 1:
+        if IS_TEST == 1:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_sr_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        else:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_sr.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        s24_fp = wandio.open(s24_fname, 'w')
 
     for s24 in s24_to_sr_status:
         this_d = s24_to_sr_status[s24]
@@ -593,21 +603,22 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
 
         if MUST_WRITE_RDA_MR == 1:
             # Not all the mr IP addresses will be in the sr IP addresses.
-            # But for those that are, let's find asn and loc details using the dict, to save processing time.
-            if ipstr in ip_to_asn:
-                asn = ip_to_asn[ipstr]
+            # But for those that are, let's find loc details using the dict, to save processing time.
+
+            # Caching ip_to_asn was not helping significantly with speed, so decided to not use the cache.
+            asn = 'UNK'
+            # Find ip_to_as, ip_to_loc
+            rnode = rtree.search_best(ipstr)
+            if rnode is None:
+                asn = 'UNK'
+            else:
+                asn = rnode.data["origin"]
+            
+            if ipstr in ip_to_loc:
+                # asn = ip_to_asn[ipstr]
                 [loc1, loc2] = ip_to_loc[ipstr]
 
             else:
-
-                # Find ASN and loc details
-                asn = 'UNK'
-                # Find ip_to_as, ip_to_loc
-                rnode = rtree.search_best(ipstr)
-                if rnode is None:
-                    asn = 'UNK'
-                else:
-                    asn = rnode.data["origin"]
 
                 loc1 = 'UNKLOC1'
                 loc2 = 'UNKLOC2'
@@ -641,7 +652,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["d"] += 1
                 rda_multiround_op_fp.write("{0} 0\n".format(ipstr) )
                 
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_mr_status[s24]['d'] |= (mask)
             
         elif addr in resp_all_rounds_addr_set:
@@ -651,7 +662,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["r"] += 1
                 rda_multiround_op_fp.write("{0} 1\n".format(ipstr) )
                 
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_mr_status[s24]['r'] |= (mask)
 
         # if ( ( addr_to_status[-1][addr] == 2) or (addr_to_status[0][addr] == 2) or (addr_to_status[1][addr] == 2) ):
@@ -662,7 +673,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
                 loc2_asn_to_status[loc2][asn]["a"] += 1
                 rda_multiround_op_fp.write("{0} 2\n".format(ipstr) )
                 
-            mask = bitset_cache[int(oct4)]
+            mask = bitset_cache[oct4]
             s24_to_mr_status[s24]['a'] |= (mask)
             
         # rda_multiround_op_fp.write("{0} {1}\n".format(ipstr, addr_to_multiround_status[addr]) )
@@ -670,20 +681,22 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
     if MUST_WRITE_RDA_MR == 1:
         rda_multiround_op_fp.close() # wandio does not like it if the fp is not closed explicitly
 
-        if IS_TEST == 1:
-            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-        else:
-            ts_fname = '{0}/{1}_to_{2}/ts_rda_mr'.format(processed_op_dir, this_t_func, this_t_round_end)
-        ts_fp = open(ts_fname, 'w')
+        if IS_COMPRESSED == 1:
+            if IS_TEST == 1:
+                ts_fname = '{0}/{1}_to_{2}/ts_rda_mr_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+            else:
+                ts_fname = '{0}/{1}_to_{2}/ts_rda_mr.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        ts_fp = wandio.open(ts_fname, 'w')
         write_ts_file(ts_fp, loc1_asn_to_status, True)
         write_ts_file(ts_fp, loc2_asn_to_status, False)
         ts_fp.close()
 
-    if IS_TEST == 1:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test'.format(processed_op_dir, this_t_func, this_t_round_end)
-    else:
-        s24_fname = '{0}/{1}_to_{2}/ts_s24_mr'.format(processed_op_dir, this_t_func, this_t_round_end)
-    s24_fp = open(s24_fname, 'w')
+    if IS_COMPRESSED == 1:        
+        if IS_TEST == 1:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_mr_test.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        else:
+            s24_fname = '{0}/{1}_to_{2}/ts_s24_mr.gz'.format(processed_op_dir, this_t_func, this_t_round_end)
+        s24_fp = wandio.open(s24_fname, 'w')
 
     for s24 in s24_to_mr_status:
         this_d = s24_to_mr_status[s24]
@@ -693,7 +706,7 @@ def write_op(processed_op_dir, this_t_func, this_t_round_end, addr_to_status, re
             
 @profile
 def main():
-    
+
     setup_stuff(processed_op_dir, this_t, this_t_round_end)
 
     # These are the set of responsive addresses at the beginning of a round (i.e., they were responsive in the previous round).
@@ -758,92 +771,126 @@ def main():
     
     write_op(processed_op_dir, this_t, this_t_round_end, addr_to_status, resp_addrs)
 
+
+def init():
+    global campaign
+    campaign = sys.argv[1]
+
+    global this_t
+    this_t = int(sys.argv[2])
+
+    global read_bin
+    read_bin = int(sys.argv[3]) # If read_bin == 1, we are reading binary input from resps_per_round.gz. Else we are reading ascii input from resps_per_addr.gz
+
+    global is_swift
+    is_swift = int(sys.argv[4]) # Whether we are reading input files from the Swift cluster or from disk
+
+    pfx2AS_fn = sys.argv[5]
+    netacq_date = sys.argv[6]
+    scope = sys.argv[7]
+
+    global MUST_WRITE_RDA
+    MUST_WRITE_RDA = 1
+
+    global MUST_WRITE_RDA_MR
+    MUST_WRITE_RDA_MR = 1
+
+    global idx_to_loc1_name
+    idx_to_loc1_name = {}
+
+    global idx_to_loc1_fqdn
+    idx_to_loc1_fqdn = {}
+
+    global idx_to_loc1_code
+    idx_to_loc1_code = {}
+
+    global idx_to_loc2_name
+    idx_to_loc2_name = {}
+
+    global idx_to_loc2_fqdn
+    idx_to_loc2_fqdn = {}
+
+    global idx_to_loc2_code
+    idx_to_loc2_code = {}
+
+    global is_US
+    if scope == 'US':
+        is_US = True
+        # loc1 is regions, loc2 is counties
+        regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, py_ver=py_ver)
+        counties_fname = '/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(counties_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=py_ver)
+
+    else:
+        is_US = False
+        # loc1 is countries, loc2 is regions
+
+        global ctry_code_to_fqdn
+        ctry_code_to_fqdn = {}
+
+        global ctry_code_to_name
+        ctry_code_to_name = {}
+        countries_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(countries_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, ctry_code_to_fqdn=ctry_code_to_fqdn, ctry_code_to_name=ctry_code_to_name, py_ver=py_ver)
+
+        regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
+        zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=py_ver)
+
+    global rtree
+    rtree = radix.Radix()
+    zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree, py_ver=3)
+
+    global ipm
+    # Load pyipmeta in order to perform geo lookups per address
+    provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
+    ipm = pyipmeta.IpMeta(provider="netacq-edge",
+                          provider_config=provider_config_str)
+
+    global IS_COMPRESSED
+    IS_COMPRESSED = 1
+
+    global IS_TEST
+    IS_TEST = 1
+
+    global num_adjacent_rounds
+    num_adjacent_rounds = 1
+
+    global this_t_round_end
+    this_t_round_end = this_t + zeusping_helpers.ROUND_SECS
+
+    if read_bin == 1:
+        global struct_fmt
+        struct_fmt = struct.Struct("I 5H")
+
+        # global buf
+        # buf = ctypes.create_string_buffer(struct_fmt.size * 2000)
+
+    global processed_op_dir
+    if read_bin == 1:
+        if IS_TEST == 1:
+            processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest3/'.format(campaign)
+        else:
+            processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_rda/'.format(campaign)
+    else:
+        processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
+
+    global bitset_cache
+    bitset_cache = {}
+    for i in range(256):
+        bitset_cache[i] = 1<<i
+
+    # sys.exit(1) # 3.183G here already
+
+    global s24_mask
+    s24_mask = 0
+    for i in range(24):
+        s24_mask |= 1 << i
+    s24_mask = s24_mask << 8
+
+    global oct4_mask
+    oct4_mask = (1 << 8) - 1
+
     
-campaign = sys.argv[1]
-this_t = int(sys.argv[2])
-read_bin = int(sys.argv[3]) # If read_bin == 1, we are reading binary input from resps_per_round.gz. Else we are reading ascii input from resps_per_addr.gz
-is_swift = int(sys.argv[4]) # Whether we are reading input files from the Swift cluster or from disk
-
-pfx2AS_fn = sys.argv[5]
-netacq_date = sys.argv[6]
-scope = sys.argv[7]
-
-MUST_WRITE_RDA = 1
-MUST_WRITE_RDA_MR = 1
-
-idx_to_loc1_name = {}
-idx_to_loc1_fqdn = {}
-idx_to_loc1_code = {}
-
-idx_to_loc2_name = {}
-idx_to_loc2_fqdn = {}
-idx_to_loc2_code = {}
-
-if scope == 'US':
-    is_US = True
-    # loc1 is regions, loc2 is counties
-    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, py_ver=py_ver)
-    counties_fname = '/data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(counties_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=py_ver)
-    
-else:
-    is_US = False
-    # loc1 is countries, loc2 is regions
-
-    ctry_code_to_fqdn = {}
-    ctry_code_to_name = {}
-    countries_fname = '/data/external/natural-earth/polygons/ne_10m_admin_0.countries.v3.1.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(countries_fname, idx_to_loc1_fqdn, idx_to_loc1_name, idx_to_loc1_code, ctry_code_to_fqdn=ctry_code_to_fqdn, ctry_code_to_name=ctry_code_to_name, py_ver=py_ver)
-    
-    regions_fname = '/data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz'
-    zeusping_helpers.load_idx_to_dicts(regions_fname, idx_to_loc2_fqdn, idx_to_loc2_name, idx_to_loc2_code, py_ver=py_ver)
-
-    
-rtree = radix.Radix()
-rnode = zeusping_helpers.load_radix_tree(pfx2AS_fn, rtree, py_ver=3)
-
-# Load pyipmeta in order to perform geo lookups per address
-provider_config_str = "-b /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-blocks.csv.gz -l /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-locations.csv.gz -p /data/external/netacuity-dumps/Edge-processed/{0}.netacq-4-polygons.csv.gz -t /data/external/gadm/polygons/gadm.counties.v2.0.processed.polygons.csv.gz -t /data/external/natural-earth/polygons/ne_10m_admin_1.regions.v3.0.0.processed.polygons.csv.gz".format(netacq_date)
-ipm = pyipmeta.IpMeta(provider="netacq-edge",
-                      provider_config=provider_config_str)
-
-
-IS_COMPRESSED = 1
-IS_TEST = 1
-num_adjacent_rounds = 1
-this_t_round_end = this_t + zeusping_helpers.ROUND_SECS
-
-# Define nested_dicts for loc_asn_to_status files (required for generating timeseries)
-def nested_dict_factory_int(): 
-  return defaultdict(int)
-
-def nested_dict_factory(): 
-  return defaultdict(nested_dict_factory_int)
-
-
-if read_bin == 1:
-    struct_fmt = struct.Struct("I 5H")
-    buf = ctypes.create_string_buffer(struct_fmt.size * 2000)
-
-# processed_op_dir = '/fs/nm-thunderping/weather_alert_prober_logs_master_copy/zeusping/data_from_aws/processed_op_randsorted_colorado_4M/'
-
-if read_bin == 1:
-    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testbintest3/'.format(campaign)
-else:
-    processed_op_dir = '/scratch/zeusping/data/processed_op_{0}_testsimple/'.format(campaign)
-
-bitset_cache = {}
-for i in range(256):
-    bitset_cache[i] = 1<<i
-
-# sys.exit(1) # 3.183G here already
-
-s24_mask = 0
-for i in range(24):
-    s24_mask |= 1 << i
-s24_mask = s24_mask << 8
-
-oct4_mask = (1 << 8) - 1
-
+init()
 main()

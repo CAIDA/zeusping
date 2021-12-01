@@ -32,70 +32,60 @@
 #  MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 import sys
-import os
-import datetime
+import glob
+import shlex
 import subprocess
 import os
-import wandio
+import datetime
+import json
+from collections import defaultdict
+import array
+import io
 import struct
 import socket
-import ctypes
-import shlex
-import gmpy
-import gc
-from collections import defaultdict
-import radix
-import pyipmeta
+import wandio
+import math
+import pprint
 
 zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeusping"))]
 sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
-if sys.version_info[0] == 2:
-    py_ver = 2
-    import subprocess32
-else:
-    py_ver = 3
 
-ip_fname = sys.argv[1]
-ip_fp = wandio.open(ip_fname)
+campaign = sys.argv[1]
+rda_path = sys.argv[2]
+is_swift = 0
+is_rda = 1
 
-reqd_s24 = sys.argv[2]
+week_tstamps = [
+    [1615075200, 1617494400], # Mar
+    [1617494400, 1619913600], # Apr
+    [1619913600, 1622937600], # May
+    [1622937600, 1625356800], # Jun
+]
 
-reqd_s24_addr_part = reqd_s24.strip().split('/')[0]
-# reqd_s24_addr_part = reqd_s24_parts[0]
+rda_statuses = [0, 1] # 0 is for sr, 1 is for mr
 
-# Convert s24 file into ip addr
-reqd_s24_ipid = struct.unpack("!I", socket.inet_aton(reqd_s24_addr_part))[0]
+# Increase the ulimit
+ulimit_cmd = "ulimit -S -n 100000"
+sys.stderr.write("{0}\n".format(ulimit_cmd) )
+os.system(ulimit_cmd)
 
+for rda_status in rda_statuses: 
+    for week_tstamp_pair in week_tstamps:
+        week_tstamp_start = week_tstamp_pair[0]
+        week_tstamp_end = week_tstamp_pair[1]
 
-for line in ip_fp:
-    parts = line.strip().split('|')
+        sys.stderr.write("Beginning run for {0} {1} {2} at {3}\n".format(rda_status, week_tstamp_start, week_tstamp_end, str(datetime.datetime.now() ) ) )
+        cmd = """python stitch_together_ts.py {0} {1} {2} {3} {4} {5} {6}""".format(week_tstamp_start, week_tstamp_end, campaign, rda_path, is_swift, is_rda, rda_status)
+        sys.stderr.write("{0}\n".format(cmd) )
+        args = shlex.split(cmd)
+        # os.system(cmd)
 
-    s24 = int(parts[0].strip() )
+        try:
+            subprocess.check_call(args)
+        except subprocess.CalledProcessError:
+            sys.stderr.write("cmd failed for {0} {1} {2}; exiting\n".format(rda_status, week_tstamp_start, week_tstamp_end) )
+            # continue
+            sys.exit(1)
 
-    if s24 != reqd_s24_ipid:
-    # if s24 != '142.202.88.0/24':
-        continue
-
-    s24_to_dets = defaultdict(set)
-
-    # s24 is an int. But reqd_s24 is a string. So is_s24_str is True
-    
-    d_addrs = int(parts[1])
-    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, d_addrs, 'd', s24_to_dets, is_s24_str=True)
-    
-    r_addrs = int(parts[2])
-    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, r_addrs, 'r', s24_to_dets, is_s24_str=True)
-    
-    a_addrs = int(parts[3])
-    zeusping_helpers.find_addrs_in_s24_with_status(reqd_s24, a_addrs, 'a', s24_to_dets, is_s24_str=True)    
-    # sys.exit(1)
-
-statuses = ['d', 'r', 'a']
-for status in statuses:
-    if status in s24_to_dets:
-        for addr in s24_to_dets[status]:
-            sys.stdout.write("{0} {1}\n".format(addr, status) )
-            # op_fp.write("{0} {1} {2}\n".format(oct4, s24_to_set_bits[oct4], status) )
-    

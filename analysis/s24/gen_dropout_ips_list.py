@@ -74,17 +74,46 @@ def find_reqd_ips(reqd_ips_fname):
     fp.close()
     return reqd_ips
 
-    
-ip_fname = sys.argv[1]
-ip_fp = wandio.open(ip_fname)
 
-reqd_ips_fname = sys.argv[2]
+def get_fp(reqd_t):
+    this_t_dt = datetime.datetime.utcfromtimestamp(reqd_t)
+    round_id = "{0}_to_{1}".format(reqd_t, reqd_t + zeusping_helpers.ROUND_SECS)
+    reqd_t_file = 'datasource=zeusping/campaign={0}/year={1}/month={2}/day={3}/hour={4}/round={5}/rda_multiround.gz'.format(campaign, this_t_dt.year, this_t_dt.strftime("%m"), this_t_dt.strftime("%d"), this_t_dt.strftime("%H"), round_id)
+    wandiocat_cmd = 'wandiocat swift://zeusping-processed/{0}'.format(reqd_t_file)
+
+    args = shlex.split(wandiocat_cmd)
+
+    if py_ver == 2:
+        try:
+            proc = subprocess32.Popen(wandiocat_cmd, stdout=subprocess32.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+        except:
+            sys.stderr.write("wandiocat failed for {0};\n".format(wandiocat_cmd) )
+            return
+    else:
+        try:
+            proc = subprocess.Popen(wandiocat_cmd, stdout=subprocess.PIPE, bufsize=-1, shell=True, executable='/bin/bash')
+        except:
+            sys.stderr.write("wandiocat failed for {0};\n".format(wandiocat_cmd) )
+            return
+
+    return proc.stdout
+
+
+campaign = sys.argv[1]
+reqd_t = int(sys.argv[2])
+
+ip_fp = get_fp(reqd_t)
+
+reqd_ips_fname = sys.argv[3]
 reqd_ips = find_reqd_ips(reqd_ips_fname)
 
 for line in ip_fp:
-    parts = line.strip().split()
+
+    parts = line.decode().strip().split()
 
     addr = parts[0].strip()
+
+    # print(addr)
 
     if addr not in reqd_ips:
         continue
@@ -92,6 +121,8 @@ for line in ip_fp:
     status = int(parts[1])
 
     if status == 0:
-        sys.stdout.write("{0}\n".format(addr) )
+        sys.stdout.write("{0}|0\n".format(addr) )
+    elif status == 1:
+        sys.stdout.write("{0}|1\n".format(addr) )
     
 

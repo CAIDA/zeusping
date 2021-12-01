@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# TODO: This script should probably read the output of stitch_together_ts.py instead of going through each ts_rda file...
+# NOTE: This script is for general P(D) analysis that we may want to perform *independent* of the binomial test. I will still be calculating P(D) in binomially_detect_corrfails.py separately from whatever I do here. Need to make sure that the functions I use in both scripts are consistent.
+
 #  This software is Copyright (c) 2021 The Regents of the University of
 #  California. All Rights Reserved. Permission to copy, modify, and distribute this
 #  software and its documentation for academic research and education purposes,
@@ -53,57 +56,63 @@ zeusping_utils_path = sys.path[0][0:(sys.path[0].find("zeusping") + len("zeuspin
 sys.path.append(zeusping_utils_path + "/utils")
 import zeusping_helpers
 
-def populate_s24_to_round_status_sr(fname, s24_to_resps):
+
+def populate_aggr_to_round_status(fname, aggr_to_rd):
     if 'gz' in fname:
         fp = wandio.open(fname)
     else:
         fp = open(fname)
 
     for line in fp:
-
         parts = line.strip().split('|')
+        aggr = parts[0]
 
-        s24 = int(parts[0].strip() )
+        if aggr not in reqd_aggrs:
+            continue
 
-        r_addrs = int(parts[2])
-        s24_to_dets = defaultdict(set)
-        zeusping_helpers.find_addrs_in_s24_with_status(s24, r_addrs, 'r', s24_to_dets, is_s24_str=False)
+        n_d = int(parts[2])
+        n_r = int(parts[3])
 
-        s24_to_resps[s24].append(len(s24_to_dets['r']) )
+        if aggr not in aggr_to_rd:
+            # If we want to calculate P(d) for every 24-h bin, we would need to init a dict for every 24h
+            # We would also need to know what the 24h-bin this round corresponds to. 
+            aggr_to_rd[aggr] = {"r" : 0, "d" : 0}
 
+        aggr_to_rd[aggr]["r"] += n_r
+        aggr_to_rd[aggr]["d"] += n_d
+        
 
 campaign = sys.argv[1]
 inp_path = sys.argv[2]
 tstart = int(sys.argv[3])
 tend = int(sys.argv[4])
 
-IS_INPUT_COMPRESSED = 1
+IS_INPUT_COMPRESSED = 0
 
-# op_fname = sys.argv[4]
-op_dir = "./data/typicalrespspers24/"
-op_fname = "{0}/typicalrespspers24-{1}-{2}to{3}".format(op_dir, campaign, tstart, tend)
+# Testing
+reqd_aggrs = set()
+reqd_aggrs.add("projects.zeusping.test1.geo.netacuity.NA.US.4430.asn.22773") # LA Cox
 
-s24_to_resps = defaultdict(list)
+op_dir = "./data/pd/" # TODO: Change this location at some point
+op_fname = "{0}/pdperaggr-{1}-{2}to{3}".format(op_dir, campaign, tstart, tend)
+
+aggr_to_rd = {}
+
 for this_t in range(tstart, tend, zeusping_helpers.ROUND_SECS):
     if IS_INPUT_COMPRESSED == 1:
-        this_t_fname = "{0}/{1}_to_{2}/ts_s24_sr.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
+        this_t_fname = "{0}/{1}_to_{2}/ts_rda_test.gz".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
     else:
-        this_t_fname = "{0}/{1}_to_{2}/ts_s24_sr_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
+        this_t_fname = "{0}/{1}_to_{2}/ts_rda_test".format(inp_path, this_t, this_t + zeusping_helpers.ROUND_SECS)
     sys.stderr.write("Processing {0} at {1}\n".format(this_t_fname, str(datetime.datetime.now() ) ) )
-    populate_s24_to_round_status_sr(this_t_fname, s24_to_resps)
+    populate_aggr_to_round_status(this_t_fname, aggr_to_rd)
 
     
-op_fp = open(op_fname, 'w')    
-for s24 in s24_to_resps:
-    # this_s24_resp_vals = s24_to_resps[s24]['r']
-    # pprint.pprint(s24)
-    # pprint.pprint(s24_to_resps[s24])
-            
-    med = statistics.median(s24_to_resps[s24])
+op_fp = open(op_fname, 'w')
+for aggr in aggr_to_rd:
 
-    # op_fp.write("{0}|{1}\n".format(s24, math.floor(med) ) )
-    # s24_ipstr = socket.inet_ntoa(struct.pack('!L', s24))
-    # op_fp.write("{0}|{1}\n".format(s24_ipstr, med ) )
-    op_fp.write("{0}|{1}\n".format(s24, med ) )
-
+    this_d = aggr_to_rd[aggr]
+    op_fp.write("{0} ".format(aggr) )
+    # If we are writing this for each 24h bin, then we would be in a for loop for each 24h
+    op_fp.write("{0}-{1}\n".format(this_d["d"], this_d["r"]) )
+                
 op_fp.close()
