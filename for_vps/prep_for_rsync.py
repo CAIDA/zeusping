@@ -43,7 +43,7 @@ def process_fil(fil, curr_time, until_time):
 
     # Skip files that are too recent
     if this_t > until_time:
-        break
+        return
 
     # Compress the file if it's not already compressed
     # NOTE: Due to some edge-conditions (if this script had failed after
