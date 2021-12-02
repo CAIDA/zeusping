@@ -6,7 +6,6 @@ import subprocess
 import glob
 import time
 import datetime
-import wandio
 import shutil
 
 def comp(fil, file_name):
