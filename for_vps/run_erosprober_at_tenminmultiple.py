@@ -100,9 +100,9 @@ time.sleep(time_to_sleep)
 # scamper_cmd = "sudo /home/ubuntu/scamper_2019/bin/sc_erosprober -U scamper_socket -a CO_VT_RI -o /home/ubuntu/zeusping/for_testing/op_CO_VT_RI/awsohio -I600 -R600 -c 'ping -c 1'"
 
 if plat == 'aws':
-    scamper_cmd = "sudo /home/ubuntu/scamper_2019/bin/sc_erosprober -U scamper_socket -a {0} -o /home/ubuntu/zeusping/for_testing/op_{1}/{2} -I600 -R600 -c 'ping -c 1'".format(campaign, campaign, vp_to_oppref[vp])
+    scamper_cmd = "sudo /home/zp/scamper/bin/sc_erosprober -U scamper_socket -a {0} -o /home/zp/zeusping/for_vps/op_{1}/{2} -I600 -R600 -c 'ping -c 1'".format(campaign, campaign, vp_to_oppref[vp])
 elif ( (plat == 'lin') or (plat == 'doc') ):
-    scamper_cmd = "sudo /home/ramapad/scamper_2019/bin/sc_erosprober -U scamper_{0}.sock -a {1}sp{0} -o /home/ramapad/zeusping/for_testing/op_{1}/{2}{0}{3} -I 600 -R 600 -c 'ping -c 1'".format(split_num, campaign, plat, vp)
+    scamper_cmd = "sudo /home/zp/scamper/bin/sc_erosprober -U scamper_{0}.sock -a {1}sp{0} -o /home/zp/zeusping/for_vps/op_{1}/{2}{0}{3} -I 600 -R 600 -c 'ping -c 1'".format(split_num, campaign, plat, vp)
 sys.stderr.write("{0}\n".format(scamper_cmd) )
 
 args = shlex.split(scamper_cmd)
