@@ -109,4 +109,4 @@ while True:
 
         process_fil(fil, curr_time, until_time)
         
-        
+    time.sleep(30)        
